@@ -1,5 +1,7 @@
 // Internet radio: a station list for Bangladesh from the public Radio Browser directory,
 // and a small player for live streams. Nothing is recorded or saved.
+import { tr } from "./i18n.js";
+
 const SERVERS = [
   "https://de1.api.radio-browser.info",
   "https://de2.api.radio-browser.info",
@@ -136,7 +138,7 @@ export class Radio {
     if (typeof MediaMetadata !== "undefined" && this.station) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: this.station.name,
-        artist: "রেডিও",
+        artist: tr("radio.artist"),
         album: "MP3 Blast",
         artwork: [{ src: new URL("icons/icon-512.png", document.baseURI).href, sizes: "512x512", type: "image/png" }],
       });

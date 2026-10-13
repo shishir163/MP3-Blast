@@ -6,27 +6,43 @@ import { Player } from "./player.js";
 import { MetaStore, TAG_COLORS } from "./meta.js";
 import * as cloud from "./cloud.js";
 import { Radio, loadStations } from "./radio.js";
+import { tr, setLang, getLang, applyStatic, LANGS } from "./i18n.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const THEME_GROUPS = ["color", "pastel", "blend", "rainbow", "night"];
+// `preview` is what the round swatch shows when the page background is a gradient.
 const THEMES = [
-  { id: "yellow", name: "হলুদ", bg: "#FFD42E", accent: "#17130A", group: "color" },
-  { id: "red", name: "লাল", bg: "#D92B3A", accent: "#FFFFFF", group: "color" },
-  { id: "green", name: "সবুজ", bg: "#14804A", accent: "#FFFFFF", group: "color" },
-  { id: "teal", name: "টিল", bg: "#0B7F7A", accent: "#FFFFFF", group: "color" },
-  { id: "blue", name: "নীল", bg: "#2B4FD8", accent: "#FFFFFF", group: "color" },
-  { id: "night", name: "রাত্রি", bg: "#000000", accent: "#F4F4F4", group: "night" },
-  { id: "gold", name: "রাতের সোনালি", bg: "#0C0A06", accent: "#FFB81F", group: "night" },
-  { id: "violet", name: "রাতের বেগুনি", bg: "#0A0710", accent: "#A58BFF", group: "night" },
-  { id: "mint", name: "রাতের পুদিনা", bg: "#050B0A", accent: "#3DE3B0", group: "night" },
+  { id: "yellow", bg: "#FFD42E", accent: "#17130A", group: "color" },
+  { id: "red", bg: "#D92B3A", accent: "#FFFFFF", group: "color" },
+  { id: "green", bg: "#14804A", accent: "#FFFFFF", group: "color" },
+  { id: "teal", bg: "#0B7F7A", accent: "#FFFFFF", group: "color" },
+  { id: "blue", bg: "#2B4FD8", accent: "#FFFFFF", group: "color" },
+  { id: "blush", bg: "#FFD9E4", accent: "#B83A63", group: "pastel" },
+  { id: "butter", bg: "#FFF1A8", accent: "#7A5C00", group: "pastel" },
+  { id: "sky", bg: "#D6EBFF", accent: "#2F6FA8", group: "pastel" },
+  { id: "pistachio", bg: "#DDF3C8", accent: "#4B7F23", group: "pastel" },
+  { id: "lavender", bg: "#E6DDFF", accent: "#6A4FC4", group: "pastel" },
+  { id: "peach", bg: "#FFDFC9", accent: "#B4531F", group: "pastel" },
+  { id: "sunset", bg: "#FFD9C0", accent: "#B8472E", group: "blend", preview: "linear-gradient(135deg,#FFB8D1,#FFD9B8 50%,#FFF09A)" },
+  { id: "ocean", bg: "#CDEAF2", accent: "#1F7A8C", group: "blend", preview: "linear-gradient(135deg,#BFF3DF,#C9E6FF 50%,#D9D0FF)" },
+  { id: "candy", bg: "#EBD3F5", accent: "#A23890", group: "blend", preview: "linear-gradient(135deg,#FFC2E0,#E1CCFF 50%,#BFE3FF)" },
+  { id: "lemonade", bg: "#E4F5C2", accent: "#4F7D12", group: "blend", preview: "linear-gradient(135deg,#FFF3A0,#E3F6B8 50%,#BDF1D6)" },
+  { id: "rainbow-soft", bg: "#E9E3FF", accent: "#6F46D9", group: "rainbow", preview: "linear-gradient(135deg,#FFB3B3,#FFD6A5 18%,#FDFFB6 36%,#CAFFBF 54%,#9BF6FF 72%,#BDB2FF)" },
+  { id: "rainbow-bright", bg: "#FFC857", accent: "#1B1033", group: "rainbow", preview: "linear-gradient(135deg,#FF6B6B,#FFA94D 20%,#FFE066 40%,#69DB7C 60%,#4DABF7 80%,#9775FA)" },
+  { id: "night", bg: "#000000", accent: "#F4F4F4", group: "night" },
+  { id: "gold", bg: "#0C0A06", accent: "#FFB81F", group: "night" },
+  { id: "violet", bg: "#0A0710", accent: "#A58BFF", group: "night" },
+  { id: "mint", bg: "#050B0A", accent: "#3DE3B0", group: "night" },
+  { id: "aurora", bg: "#0B1020", accent: "#FF8AD8", group: "night", preview: "linear-gradient(135deg,#1B1450,#0C3A52 50%,#4A1450)" },
 ];
 
 const FONTS = [
-  { id: "lato", name: "Lato সাধারণ" },
-  { id: "lato-bold", name: "Lato মোটা" },
+  { id: "lato", key: "font.lato" },
+  { id: "lato-bold", key: "font.lato-bold" },
   { id: "roboto", name: "Roboto" },
   { id: "poppins", name: "Poppins" },
   { id: "nunito", name: "Nunito" },
@@ -37,11 +53,11 @@ const FONTS = [
 ];
 
 const TABS = [
-  { id: "now", label: "বাজছে", icon: "disc" },
-  { id: "songs", label: "গান", icon: "note" },
-  { id: "radio", label: "রেডিও", icon: "radio" },
-  { id: "folders", label: "ফোল্ডার", icon: "folder" },
-  { id: "look", label: "সাজসজ্জা", icon: "palette" },
+  { id: "now", key: "tab.now", icon: "disc" },
+  { id: "songs", key: "tab.songs", icon: "note" },
+  { id: "radio", key: "tab.radio", icon: "radio" },
+  { id: "folders", key: "tab.folders", icon: "folder" },
+  { id: "look", key: "tab.look", icon: "palette" },
 ];
 
 const collator = new Intl.Collator(["bn", "en"], { numeric: true, sensitivity: "base" });
@@ -70,6 +86,7 @@ let grabOpened = false;
 let tagEditing = null;
 let cloudUid = null;
 let syncWarned = false;
+let syncState = "";
 const meta = new MetaStore();
 let tab = "now";
 let songsView = [];
@@ -124,7 +141,7 @@ function toast(message) {
 
 function persist() {
   store.saveFolders(folders);
-  if (!store.saveTracks(tracks)) toast("গানের তালিকা সংরক্ষণ করা গেল না। ফোনের জায়গা কম হতে পারে।");
+  if (!store.saveTracks(tracks)) toast(tr("songs.saveFail"));
 }
 
 function sortTracks(list) {
@@ -156,23 +173,31 @@ function savePrefs() {
 function renderLook() {
   const swatch = (t) => `
     <button class="theme-btn" type="button" data-theme-id="${t.id}" aria-pressed="${prefs.theme === t.id}">
-      <span class="swatch" style="background:${t.bg};--sw-accent:${t.accent};--sw-ink:${t.accent}">${
+      <span class="swatch" style="background:${t.preview || t.bg};--sw-accent:${t.accent};--sw-ink:${t.accent}">${
         prefs.theme === t.id ? icon("check") : ""
       }</span>
-      <span>${esc(t.name)}</span>
+      <span>${esc(tr("theme." + t.id))}</span>
     </button>`;
-  $("#themes-color").innerHTML = THEMES.filter((t) => t.group === "color").map(swatch).join("");
-  $("#themes-night").innerHTML = THEMES.filter((t) => t.group === "night").map(swatch).join("");
+  $("#themes").innerHTML = THEME_GROUPS.map(
+    (g) => `
+    <p class="group-label">${esc(tr("group." + g))}</p>
+    <div class="themes">${THEMES.filter((t) => t.group === g).map(swatch).join("")}</div>`
+  ).join("");
 
   $("#fonts").innerHTML = FONTS.map(
     (f) => `
     <button class="font-row fs-${f.id}" type="button" data-font-id="${f.id}" aria-pressed="${prefs.font === f.id}">
       <span class="font-text">
-        <span class="font-name">${esc(f.name)}</span>
-        <span class="font-sample">আমার প্রিয় গান / My favourite song</span>
+        <span class="font-name">${esc(f.key ? tr(f.key) : f.name)}</span>
+        <span class="font-sample">${esc(tr("font.sample"))}</span>
       </span>
       ${prefs.font === f.id ? icon("check") : ""}
     </button>`
+  ).join("");
+
+  $("#langs").innerHTML = LANGS.map(
+    (l) =>
+      `<button class="btn" type="button" data-lang="${l}" aria-pressed="${getLang() === l}">${l === "en" ? "English" : "বাংলা"}</button>`
   ).join("");
 }
 
@@ -180,7 +205,7 @@ function renderLook() {
 function renderNav() {
   $$(".nav-btn").forEach((btn) => {
     const t = TABS.find((x) => x.id === btn.dataset.tab);
-    btn.innerHTML = `<span class="nav-ic">${icon(t.icon)}</span><span>${t.label}</span>`;
+    btn.innerHTML = `<span class="nav-ic">${icon(t.icon)}</span><span>${esc(tr(t.key))}</span>`;
   });
 }
 
@@ -212,6 +237,7 @@ function renderControls() {
   $("#mini-next").innerHTML = icon("next");
   $("#search-ic").innerHTML = icon("search");
   $("#vol-ic").innerHTML = icon("volume");
+  $$("[data-ic]").forEach((el) => (el.innerHTML = icon(el.dataset.ic)));
   $("#btn-undo").innerHTML = icon("undo");
   $("#btn-redo").innerHTML = icon("redo");
   renderMode();
@@ -225,13 +251,13 @@ function renderMode() {
   rep.setAttribute("aria-pressed", String(player.repeat !== "off"));
   rep.setAttribute(
     "aria-label",
-    player.repeat === "off" ? "পুনরাবৃত্তি বন্ধ" : player.repeat === "all" ? "সব গান আবার বাজবে" : "এই গান আবার বাজবে"
+    player.repeat === "off" ? tr("ctl.repeatOff") : player.repeat === "all" ? tr("ctl.repeatAll") : tr("ctl.repeatOne")
   );
 }
 
 function renderState() {
   const playing = player.status === "playing";
-  const label = playing ? "থামাও" : "চালাও";
+  const label = playing ? tr("ctl.pause") : tr("ctl.play");
   const main = $("#btn-play");
   main.innerHTML = icon(playing ? "pause" : "play");
   main.setAttribute("aria-label", label);
@@ -239,7 +265,8 @@ function renderState() {
   mini.innerHTML = icon(playing ? "pause" : "play");
   mini.setAttribute("aria-label", label);
   $("#disc").classList.toggle("playing", playing);
-  if (player.status === "loading") $("#now-status").textContent = "গান লোড হচ্ছে…";
+  $("#eq").classList.toggle("on", playing);
+  if (player.status === "loading") $("#now-status").textContent = tr("now.loading");
   else if (player.status !== "idle" || !player.current) $("#now-status").textContent = "";
 }
 
@@ -247,8 +274,8 @@ function renderTrack() {
   const t = player.current;
   const letter = $("#disc-letter");
   if (!t) {
-    $("#now-title").textContent = "কিছু বাজছে না";
-    $("#now-sub").textContent = "গান ট্যাবে গিয়ে একটি গান বেছে নাও।";
+    $("#now-title").textContent = tr("now.nothing");
+    $("#now-sub").textContent = tr("now.pick");
     letter.innerHTML = icon("note");
     document.title = "MP3 Blast";
   } else {
@@ -277,6 +304,7 @@ function renderTime() {
     seek.value = String(per);
     seek.style.setProperty("--pct", `${per / 10}%`);
   }
+  noteTime();
 }
 
 function renderQueue() {
@@ -285,11 +313,11 @@ function renderQueue() {
   list.textContent = "";
   $("#btn-clear-queue").hidden = up.length === 0;
   if (!up.length) {
-    list.innerHTML = `<li class="list-note">এরপর কোনো গান নেই।</li>`;
+    list.innerHTML = `<li class="list-note">${tr("queue.empty")}</li>`;
     return;
   }
   const frag = document.createDocumentFragment();
-  up.slice(0, 40).forEach((entry, k) => {
+  up.slice(0, QUEUE_SHOWN).forEach((entry, k) => {
     const li = document.createElement("li");
     li.className = "row";
     li.dataset.pos = String(player.index + 1 + k);
@@ -302,40 +330,200 @@ function renderQueue() {
           <span class="row-sub">${esc(trackSub(entry.track))}</span>
         </span>
       </button>
-      <button class="row-more" type="button" data-remove aria-label="কিউ থেকে সরাও">${icon("close")}</button>`;
+      <button class="row-more" type="button" data-remove aria-label="${esc(tr("queue.remove"))}">${icon("close")}</button>`;
     frag.append(li);
   });
   list.append(frag);
-  if (up.length > 40) {
+  if (up.length > QUEUE_SHOWN) {
     const more = document.createElement("li");
     more.className = "list-note";
-    more.textContent = `আরও ${up.length - 40}টি গান আছে।`;
+    more.textContent = tr("queue.more", { n: up.length - QUEUE_SHOWN });
     list.append(more);
   }
 }
 
-// ---------- songs ----------
-const MODES = [
-  { id: "all", label: "সব" },
-  { id: "fav", label: "পছন্দ" },
-  { id: "playlist", label: "প্লেলিস্ট" },
-  { id: "artist", label: "আর্টিস্ট" },
-  { id: "album", label: "অ্যালবাম" },
-  { id: "movie", label: "সিনেমা" },
-  { id: "tag", label: "ট্যাগ" },
-  { id: "folder", label: "ফোল্ডার" },
-];
-const GROUP_MODES = new Set(["playlist", "artist", "album", "movie", "tag", "folder"]);
-const NO_VALUE = "ঠিক করা হয়নি";
+// ---------- dashboard (Now Playing extras) ----------
+const QUEUE_SHOWN = 10;
+const SLEEP_OPTIONS = [0, 15, 30, 60];
+let userName = "";
+let statsData = store.stats(); // play counts and recent songs, kept on this device only
+let countedFor = null; // queue entry already counted as a play
+let dashRecent = [];
+let dashMost = [];
+let sleepMin = 0;
+let sleepEnd = 0;
+let sleepTimer = 0;
+let sleepTick = 0;
 
-const modeLabel = (id) => MODES.find((m) => m.id === id).label;
+function buildEq() {
+  const n = 28;
+  $("#eq").innerHTML = Array.from({ length: n }, (_, i) => {
+    const a = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
+    const b = Math.abs(Math.sin(i * 78.233) * 12345.6789) % 1;
+    const style = `--s:${(0.35 + a * 0.65).toFixed(2)};--d:${(0.45 + b * 0.8).toFixed(2)}s;--dl:-${(a * 1.5).toFixed(2)}s;--hc:${Math.round((i / n) * 300)}`;
+    return `<i style="${style}"></i>`;
+  }).join("");
+}
+
+function greetingKey(hour) {
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 15) return "noon";
+  if (hour >= 15 && hour < 18) return "afternoon";
+  if (hour >= 18 && hour < 21) return "evening";
+  return "night";
+}
+
+function renderGreeting() {
+  const word = tr("greet." + greetingKey(new Date().getHours()));
+  $("#greet-title").textContent = userName ? `${word}, ${userName}` : word;
+  const favs = tracks.filter((t) => meta.get(t.id).fav).length;
+  $("#greet-sub").textContent = tracks.length
+    ? `${tr("songs.n", { n: tracks.length })} · ${tr("dash.favs", { n: favs })}`
+    : tr("dash.add");
+}
+
+function hueOf(text) {
+  let h = 0;
+  for (const c of String(text)) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+
+function cardsHtml(list, subOf) {
+  if (!list.length) return `<p class="list-note">${esc(tr("dash.nostats"))}</p>`;
+  return list
+    .map((t, i) => {
+      const title = displayTitle(t);
+      return `<button class="card" type="button" data-i="${i}">
+        <span class="card-tile" style="--h:${hueOf(t.id)}">${esc(firstGlyph(title))}</span>
+        <span class="card-title">${esc(title)}</span>
+        <span class="card-sub">${esc(subOf(t, i))}</span>
+      </button>`;
+    })
+    .join("");
+}
+
+function renderCards() {
+  const byId = new Map(tracks.map((t) => [t.id, t]));
+  dashRecent = statsData.recent.map((id) => byId.get(id)).filter(Boolean).slice(0, 12);
+  const ranked = Object.entries(statsData.plays)
+    .filter(([id, n]) => byId.has(id) && n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  dashMost = ranked.map(([id]) => byId.get(id));
+  $("#cards-recent").innerHTML = cardsHtml(dashRecent, (t) => trackSub(t));
+  $("#cards-most").innerHTML = cardsHtml(dashMost, (t, i) => tr("dash.plays", { n: ranked[i][1] }));
+}
+
+function renderQuick() {
+  $("#q-radio-sub").textContent = prefs.lastStation ? prefs.lastStation.name : "";
+}
+
+function updateSleepLeft() {
+  const el = $("#sleep-left");
+  if (!sleepEnd) {
+    el.textContent = "";
+    return;
+  }
+  el.textContent = tr("sleep.left", { t: fmt(Math.max(0, Math.ceil((sleepEnd - Date.now()) / 1000))) });
+}
+
+function renderSleep() {
+  $("#sleep-opts").innerHTML = SLEEP_OPTIONS.map(
+    (m) =>
+      `<button class="chip" type="button" data-sleep="${m}" aria-pressed="${sleepMin === m}">${esc(
+        m ? tr("sleep.min", { n: m }) : tr("sleep.off")
+      )}</button>`
+  ).join("");
+  updateSleepLeft();
+}
+
+function setSleep(min) {
+  clearTimeout(sleepTimer);
+  clearInterval(sleepTick);
+  sleepMin = min;
+  sleepEnd = 0;
+  if (min) {
+    sleepEnd = Date.now() + min * 60000;
+    sleepTimer = setTimeout(sleepFire, min * 60000);
+    sleepTick = setInterval(() => {
+      if (Date.now() >= sleepEnd) sleepFire();
+      else updateSleepLeft();
+    }, 1000);
+  }
+  renderSleep();
+}
+
+function sleepFire() {
+  setSleep(0);
+  player.audio.pause();
+  if (radio.station) radio.pause();
+  toast(tr("sleep.done"));
+}
+
+function renderDash() {
+  renderGreeting();
+  renderCards();
+  renderQuick();
+  renderSleep();
+}
+
+function recordPlay(id) {
+  statsData.plays[id] = (statsData.plays[id] || 0) + 1;
+  statsData.recent = [id, ...statsData.recent.filter((x) => x !== id)].slice(0, 30);
+  store.saveStats(statsData);
+  renderCards();
+}
+
+// A song counts as played once it has run for 10 seconds.
+function noteTime() {
+  const entry = player.currentEntry;
+  if (!entry || player.status !== "playing") return;
+  const at = player.audio.currentTime || 0;
+  if (at < 2) countedFor = null;
+  else if (at >= 10 && countedFor !== entry.uid) {
+    countedFor = entry.uid;
+    recordPlay(entry.track.id);
+  }
+}
+
+function shuffledCopy(list) {
+  const a = list.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function quickPlay(kind) {
+  if (kind === "radio") {
+    if (!prefs.lastStation) return showTab("radio");
+    if (player.status === "playing") player.audio.pause();
+    radio.play(prefs.lastStation);
+    return;
+  }
+  if (!tracks.length) return toast(tr("songs.none"));
+  if (kind === "fav") {
+    const favs = tracks.filter((t) => meta.get(t.id).fav);
+    if (!favs.length) return toast(tr("songs.noFav"));
+    player.setQueue(shuffledCopy(favs), 0);
+  } else {
+    player.setQueue(shuffledCopy(tracks).slice(0, 50), 0);
+  }
+}
+
+// ---------- songs ----------
+const MODES = ["all", "fav", "playlist", "artist", "album", "movie", "tag", "folder"].map((id) => ({ id }));
+const GROUP_MODES = new Set(["playlist", "artist", "album", "movie", "tag", "folder"]);
+
+const modeLabel = (id) => tr("mode." + id);
 const isGroupList = () => GROUP_MODES.has(mode) && sub === null && !filter.q.trim();
 
 function subLabel() {
   if (mode === "tag") return (meta.tag(sub) || {}).name || "";
   if (mode === "playlist") return (meta.playlist(sub) || {}).name || "";
   if (mode === "folder") return folderName(sub);
-  return sub === "" ? NO_VALUE : sub;
+  return sub === "" ? tr("novalue") : sub;
 }
 
 function inScope(t) {
@@ -402,11 +590,11 @@ function songRow(track, i) {
     ${
       reorderOn()
         ? `<span class="row-acts">
-            <button class="row-act" type="button" data-pl-up aria-label="ওপরে তোলো" ${i === 0 ? "disabled" : ""}>${icon("up")}</button>
-            <button class="row-act" type="button" data-pl-down aria-label="নিচে নামাও" ${i === songsView.length - 1 ? "disabled" : ""}>${icon("down")}</button>
-            <button class="row-act" type="button" data-pl-del aria-label="প্লেলিস্ট থেকে সরাও">${icon("close")}</button>
+            <button class="row-act" type="button" data-pl-up aria-label="${esc(tr("pl.up"))}" ${i === 0 ? "disabled" : ""}>${icon("up")}</button>
+            <button class="row-act" type="button" data-pl-down aria-label="${esc(tr("pl.down"))}" ${i === songsView.length - 1 ? "disabled" : ""}>${icon("down")}</button>
+            <button class="row-act" type="button" data-pl-del aria-label="${esc(tr("pl.remove"))}">${icon("close")}</button>
           </span>`
-        : `<button class="row-more" type="button" data-more aria-label="আরও বিকল্প">${icon("more")}</button>`
+        : `<button class="row-more" type="button" data-more aria-label="${esc(tr("songs.more"))}">${icon("more")}</button>`
     }`;
   return li;
 }
@@ -423,7 +611,7 @@ function appendSongs() {
 
 function renderChips() {
   $("#chips").innerHTML = MODES.map(
-    (m) => `<button class="chip" type="button" data-mode="${m.id}" aria-pressed="${mode === m.id}">${m.label}</button>`
+    (m) => `<button class="chip" type="button" data-mode="${m.id}" aria-pressed="${mode === m.id}">${esc(modeLabel(m.id))}</button>`
   ).join("");
 }
 
@@ -464,7 +652,7 @@ function buildGroups() {
     counts.set(value, (counts.get(value) || 0) + 1);
   });
   return [...counts]
-    .map(([key, count]) => ({ key, label: key || NO_VALUE, count }))
+    .map(([key, count]) => ({ key, label: key || tr("novalue"), count }))
     .sort((a, b) => (a.key === "") - (b.key === "") || collator.compare(a.label, b.label));
 }
 
@@ -475,15 +663,15 @@ function renderGroups() {
   songsShown = 0;
   $("#songs-sentinel").hidden = true;
   $("#songs-empty").hidden = true;
-  $("#songs-count").textContent = groups.length ? `${groups.length}টি ${modeLabel(mode)}` : "";
+  $("#songs-count").textContent = groups.length ? tr("count." + mode, { n: groups.length }) : "";
   const frag = document.createDocumentFragment();
   if (mode === "tag" || mode === "playlist") {
     const add = document.createElement("li");
     add.className = "group-add";
     add.innerHTML =
       mode === "tag"
-        ? `<button class="btn" type="button" data-new-tag>${icon("plus")}নতুন ট্যাগ</button>`
-        : `<button class="btn" type="button" data-new-pl>${icon("plus")}নতুন প্লেলিস্ট</button>`;
+        ? `<button class="btn" type="button" data-new-tag>${icon("plus")}${tr("tag.new")}</button>`
+        : `<button class="btn" type="button" data-new-pl>${icon("plus")}${tr("pl.newBtn")}</button>`;
     frag.append(add);
   }
   groups.forEach((g) => {
@@ -499,12 +687,12 @@ function renderGroups() {
         <span class="row-idx">${lead}</span>
         <span class="row-text">
           <span class="row-title">${esc(g.label)}</span>
-          <span class="row-sub">${g.count}টি গান</span>
+          <span class="row-sub">${tr("songs.n", { n: g.count })}</span>
         </span>
         <span class="ic-chev">${icon("chevron")}</span>
       </button>` +
       (mode === "tag"
-        ? `<button class="row-more" type="button" data-edit-tag aria-label="ট্যাগ বদলাও">${icon("edit")}</button>`
+        ? `<button class="row-more" type="button" data-edit-tag aria-label="${esc(tr("tag.edit"))}">${icon("edit")}</button>`
         : "");
     frag.append(li);
   });
@@ -513,12 +701,12 @@ function renderGroups() {
     note.className = "list-note";
     note.textContent =
       mode === "tag"
-        ? "এখনো কোনো ট্যাগ নেই।"
+        ? tr("empty.tag")
         : mode === "playlist"
-        ? "এখনো কোনো প্লেলিস্ট নেই। ওপরের বোতামে নতুন প্লেলিস্ট বানাও।"
+        ? tr("empty.playlist")
         : mode === "folder"
-        ? "এখনো কোনো ফোল্ডার যোগ করা হয়নি।"
-        : "এখনো কিছু ঠিক করা হয়নি। গানের পাশের ⋯ চেপে বিবরণ বদলাও।";
+        ? tr("empty.folder")
+        : tr("empty.other");
     frag.append(note);
   }
   list.textContent = "";
@@ -528,10 +716,10 @@ function renderGroups() {
 function renderSelbar() {
   const n = selected.size;
   $("#selbar").hidden = !(selecting && tab === "songs");
-  $("#sel-count").textContent = n ? `${n}টি গান বাছাই করা` : "গানের ওপর চাপ দিয়ে বাছাই করো";
+  $("#sel-count").textContent = n ? tr("sel.count", { n }) : tr("sel.hint");
   $("#sel-edit").disabled = n === 0;
   const all = songsView.length > 0 && songsView.every((t) => selected.has(t.id));
-  $("#sel-all").textContent = all ? "বাছাই তোলো" : "সব বাছাই";
+  $("#sel-all").textContent = all ? tr("sel.none") : tr("sel.all");
   $("#sel-all").disabled = songsView.length === 0;
 }
 
@@ -550,9 +738,9 @@ function renderPlBar() {
   const show = mode === "playlist" && sub !== null && !!meta.playlist(sub);
   $("#pl-bar").hidden = !show;
   if (!show) return;
-  $("#pl-play").innerHTML = icon("play") + "সব বাজাও";
+  $("#pl-play").innerHTML = icon("play") + tr("pl.playAll");
   $("#pl-reorder").setAttribute("aria-pressed", String(plReorder));
-  $("#pl-reorder").textContent = plReorder ? "ক্রম বদল শেষ" : "ক্রম বদলাও";
+  $("#pl-reorder").textContent = plReorder ? tr("pl.reorderDone") : tr("pl.reorder");
   $("#pl-reorder").disabled = selecting || !!filter.q.trim();
 }
 
@@ -567,14 +755,14 @@ function renderSongsInner() {
   const selBtn = $("#btn-select");
   selBtn.hidden = isGroupList() || !tracks.length;
   selBtn.setAttribute("aria-pressed", String(selecting));
-  selBtn.textContent = selecting ? "বাছাই শেষ" : "বাছাই করো";
+  selBtn.textContent = selecting ? tr("sel.end") : tr("sel.start");
   $("#songs-list").classList.toggle("selecting", selecting && !isGroupList());
   $("#songs-list").textContent = "";
   songsShown = 0;
   if (!tracks.length) {
     songsView = [];
     empty.hidden = false;
-    empty.innerHTML = `<p>এখনো কোনো গান নেই।</p><p style="margin-top:14px"><button class="btn btn-primary" type="button" data-go="folders">ড্রাইভের ফোল্ডার যোগ করো</button></p>`;
+    empty.innerHTML = `<p>${tr("songs.none")}</p><p style="margin-top:14px"><button class="btn btn-primary" type="button" data-go="folders">${tr("songs.addFolder")}</button></p>`;
     $("#songs-count").textContent = "";
     $("#songs-sentinel").hidden = true;
     return;
@@ -584,15 +772,15 @@ function renderSongsInner() {
     return;
   }
   songsView = filteredTracks();
-  $("#songs-count").textContent = `${songsView.length}টি গান`;
+  $("#songs-count").textContent = tr("songs.n", { n: songsView.length });
   if (!songsView.length) {
     empty.hidden = false;
     empty.textContent =
       mode === "fav" && !filter.q.trim()
-        ? "পছন্দের কোনো গান নেই। গানের পাশের ⋯ চেপে পছন্দ করো।"
+        ? tr("songs.noFav")
         : mode === "playlist" && sub !== null && !filter.q.trim()
-        ? "এই প্লেলিস্টে এখনো গান নেই। যেকোনো গানের ⋯ চেপে \"প্লেলিস্টে যোগ করো\" বেছে নাও।"
-        : "কিছু পাওয়া যায়নি।";
+        ? tr("songs.plEmpty")
+        : tr("songs.nothing");
     $("#songs-sentinel").hidden = true;
     return;
   }
@@ -623,10 +811,10 @@ function renderFolders() {
       <span class="ic-lead">${icon("folder")}</span>
       <div class="folder-info">
         <span class="folder-name">${esc(f.name)}</span>
-        <span class="folder-meta">${f.count}টি গান</span>
+        <span class="folder-meta">${tr("songs.n", { n: f.count })}</span>
       </div>
-      <button class="icon-btn" type="button" data-act="rescan" aria-label="আবার স্ক্যান করো">${icon("refresh")}</button>
-      <button class="icon-btn" type="button" data-act="remove" aria-label="তালিকা থেকে সরাও">${icon("delete")}</button>
+      <button class="icon-btn" type="button" data-act="rescan" aria-label="${esc(tr("folders.rescan"))}">${icon("refresh")}</button>
+      <button class="icon-btn" type="button" data-act="remove" aria-label="${esc(tr("folders.remove"))}">${icon("delete")}</button>
     </li>`
     )
     .join("");
@@ -642,20 +830,20 @@ function setBusy(text) {
 function handleDriveError(err) {
   if (err instanceof AuthError) {
     updateBanner();
-    toast('ড্রাইভের সঙ্গে সংযোগ নেই। "আবার যুক্ত করো" চাপো।');
+    toast(tr("folders.noauth"));
   } else if (err instanceof DriveError) {
-    if (err.message === "not-a-folder") toast("এটি ফোল্ডারের লিংক নয়।");
-    else if (err.status === 404) toast("ফোল্ডারটি পাওয়া যায়নি। লিংকটি ঠিক আছে কি না দেখো।");
+    if (err.message === "not-a-folder") toast(tr("folders.notFolder"));
+    else if (err.status === 404) toast(tr("folders.404"));
     else if (err.status === 403)
-      toast("ড্রাইভ অনুমতি দিচ্ছে না। ফোল্ডারটি তোমার ড্রাইভে আছে কি না আর Google Drive API চালু আছে কি না দেখো।");
-    else toast(`ড্রাইভ থেকে ঠিক উত্তর আসেনি (কোড ${err.status})।`);
+      toast(tr("folders.403"));
+    else toast(tr("folders.code", { code: err.status }));
   } else {
-    toast("ইন্টারনেট সংযোগ দেখো, তারপর আবার চেষ্টা করো।");
+    toast(tr("common.online"));
   }
 }
 
 async function scanInto(info, isNew) {
-  const found = await scanFolder(info, (n) => setBusy(`স্ক্যান হচ্ছে… ${n}টি গান পাওয়া গেছে`));
+  const found = await scanFolder(info, (n) => setBusy(tr("folders.scanning", { n })));
   const record = { id: info.id, name: info.name, count: found.length, scannedAt: Date.now() };
   folders = isNew ? [...folders, record] : folders.map((f) => (f.id === info.id ? record : f));
   tracks = sortTracks([...tracks.filter((t) => t.root !== info.id), ...found]);
@@ -665,17 +853,17 @@ async function scanInto(info, isNew) {
 
 async function addFolder(raw) {
   const id = parseFolderId(raw);
-  if (!id) return toast("এই লিংক থেকে ফোল্ডার চেনা যায়নি।");
-  if (folders.some((f) => f.id === id)) return toast("এই ফোল্ডার আগেই যোগ করা আছে।");
+  if (!id) return toast(tr("folders.noId"));
+  if (folders.some((f) => f.id === id)) return toast(tr("folders.dup"));
   busy = true;
-  setBusy("ফোল্ডার খোলা হচ্ছে…");
+  setBusy(tr("folders.opening"));
   try {
     const info = await getFolderInfo(id);
     const n = await scanInto(info, true);
     $("#folder-input").value = "";
     syncFoldersToMeta();
     renderAll();
-    toast(n ? `${n}টি গান যোগ হয়েছে।` : "এই ফোল্ডারে কোনো গান পাওয়া যায়নি।");
+    toast(n ? tr("folders.addedN", { n }) : tr("folders.empty"));
   } catch (err) {
     handleDriveError(err);
   } finally {
@@ -686,12 +874,12 @@ async function addFolder(raw) {
 
 async function rescanFolder(folder) {
   busy = true;
-  setBusy("ফোল্ডার খোলা হচ্ছে…");
+  setBusy(tr("folders.opening"));
   try {
     const info = await getFolderInfo(folder.id);
     const n = await scanInto(info, false);
     renderAll();
-    toast(`${n}টি গান পাওয়া গেছে।`);
+    toast(tr("songs.found", { n }));
   } catch (err) {
     handleDriveError(err);
   } finally {
@@ -701,7 +889,7 @@ async function rescanFolder(folder) {
 }
 
 function removeFolder(folder) {
-  if (!confirm(`"${folder.name}" তালিকা থেকে সরানো হবে। ড্রাইভের ফাইল মুছবে না। সরাবে?`)) return;
+  if (!confirm(tr("folders.confirmRemove", { name: folder.name }))) return;
   folders = folders.filter((f) => f.id !== folder.id);
   tracks = tracks.filter((t) => t.root !== folder.id);
   if (mode === "folder" && sub === folder.id) sub = null;
@@ -715,7 +903,7 @@ function openSheet(track) {
   sheetTrack = track;
   const fav = meta.get(track.id).fav;
   $("#sheet-title").textContent = displayTitle(track);
-  $("#sheet-fav").innerHTML = icon(fav ? "heart" : "heart-outline") + (fav ? "পছন্দ থেকে সরাও" : "পছন্দ করো");
+  $("#sheet-fav").innerHTML = icon(fav ? "heart" : "heart-outline") + (fav ? tr("sheet.unfav") : tr("sheet.fav"));
   $("#sheet").hidden = false;
 }
 
@@ -742,7 +930,7 @@ function renderEditTags() {
     (tg) =>
       `<button class="tagchip" type="button" data-tag="${esc(tg.id)}" aria-pressed="${editing.tags.has(tg.id)}"><span class="tag-dot" style="--c:${esc(tg.color)}"></span>${esc(tg.name)}</button>`
   );
-  chips.push(`<button class="tagchip tagchip-add" type="button" data-new-tag>${icon("plus")}নতুন ট্যাগ</button>`);
+  chips.push(`<button class="tagchip tagchip-add" type="button" data-new-tag>${icon("plus")}${tr("tag.new")}</button>`);
   $("#f-tags").innerHTML = chips.join("");
 }
 
@@ -751,8 +939,8 @@ function renderEditFav() {
   btn.setAttribute("aria-pressed", String(editing.fav));
   const bulk = !!editing.bulk;
   const label = editing.fav
-    ? bulk ? "সবগুলো পছন্দের তালিকায় যাবে" : "পছন্দের তালিকায় আছে"
-    : bulk ? "সবগুলো পছন্দের তালিকায় রাখো" : "পছন্দের তালিকায় রাখো";
+    ? bulk ? tr("edit.favBulkOn") : tr("edit.favOn")
+    : bulk ? tr("edit.favBulkOff") : tr("edit.favOff");
   btn.innerHTML = icon(editing.fav ? "heart" : "heart-outline") + label;
 }
 
@@ -761,7 +949,7 @@ const baseName = (name) => String(name || "").replace(/\.[^./\\]+$/, "");
 function setEditFieldHints(bulk) {
   $("#name-field").hidden = bulk;
   ["#f-artist", "#f-album", "#f-movie"].forEach((sel) => {
-    $(sel).placeholder = bulk ? "বদলাবে না" : "";
+    $(sel).placeholder = bulk ? tr("edit.wontChange") : "";
   });
   $("#edit-hint").hidden = !bulk;
 }
@@ -769,11 +957,11 @@ function setEditFieldHints(bulk) {
 function openBulkEdit() {
   const ids = tracks.filter((t) => selected.has(t.id)).map((t) => t.id);
   if (!ids.length) {
-    toast("আগে কিছু গান বাছাই করো।");
+    toast(tr("sel.first"));
     return;
   }
   editing = { bulk: ids, tags: new Set(), fav: false };
-  $("#edit-title").textContent = `${ids.length}টি গানের বিবরণ`;
+  $("#edit-title").textContent = tr("edit.bulkTitle", { n: ids.length });
   ["#f-artist", "#f-album", "#f-movie"].forEach((sel) => ($(sel).value = ""));
   setEditFieldHints(true);
   fillDatalist("#dl-artist", "artist");
@@ -817,13 +1005,13 @@ function saveBulkEdit() {
   const fav = editing.fav;
   closeEdit();
   if (!Object.keys(patch).length && !addTags.length && !fav) {
-    toast("কিছু বদলানো হয়নি।");
+    toast(tr("edit.nothing"));
     return;
   }
   selected.clear();
   selecting = false;
   meta.setMany(ids, { patch, addTags, fav });
-  toast(`${ids.length}টি গানের বিবরণ বদলানো হয়েছে।`);
+  toast(tr("edit.bulkDone", { n: ids.length }));
 }
 
 function saveEdit() {
@@ -854,18 +1042,18 @@ function saveEdit() {
   closeEdit();
   if (!same) {
     meta.setTrack(id, next);
-    toast("সংরক্ষণ করা হয়েছে।");
+    toast(tr("common.saved"));
   }
   if (wantsRename) renameTrack(track, newBase);
 }
 
 function renameErrorText(err) {
-  if (err instanceof AuthError) return 'ড্রাইভের সঙ্গে সংযোগ নেই। "আবার যুক্ত করো" চেপে আবার চেষ্টা করো।';
+  if (err instanceof AuthError) return tr("rename.noauth");
   if (err instanceof DriveError && err.status === 403)
-    return 'নাম বদলের অনুমতি নেই। "সাজসজ্জা" ট্যাবে "ড্রাইভ আবার যুক্ত করো" চেপে নতুন অনুমতি দাও।';
-  if (err instanceof DriveError && err.status === 404) return "ফাইলটি ড্রাইভে আর পাওয়া যাচ্ছে না।";
-  if (err instanceof DriveError) return `ড্রাইভ নাম বদলায়নি (কোড ${err.status})।`;
-  return "ইন্টারনেট সংযোগ দেখো, তারপর আবার চেষ্টা করো।";
+    return tr("rename.noperm");
+  if (err instanceof DriveError && err.status === 404) return tr("rename.gone");
+  if (err instanceof DriveError) return tr("rename.code", { code: err.status });
+  return tr("common.online");
 }
 
 async function renameTrack(track, base) {
@@ -880,7 +1068,7 @@ async function renameTrack(track, base) {
     renderAll();
     renderQueue();
     renderTrack();
-    toast("ড্রাইভে নামটি বদলানো হয়েছে।");
+    toast(tr("rename.ok"));
   } catch (err) {
     if (err instanceof AuthError) updateBanner();
     toast(renameErrorText(err));
@@ -891,14 +1079,14 @@ async function renameTrack(track, base) {
 function renderTagColors() {
   $("#tag-colors").innerHTML = TAG_COLORS.map(
     (c) =>
-      `<button class="color-btn" type="button" data-color="${c}" style="--c:${c}" aria-pressed="${tagEditing.color === c}" aria-label="রং বেছে নাও"></button>`
+      `<button class="color-btn" type="button" data-color="${c}" style="--c:${c}" aria-pressed="${tagEditing.color === c}" aria-label="${esc(tr("tag.pickColor"))}"></button>`
   ).join("");
 }
 
 function openTagDialog(tagId) {
   const existing = tagId ? meta.tag(tagId) : null;
   tagEditing = { id: existing ? existing.id : null, color: existing ? existing.color : TAG_COLORS[0] };
-  $("#tag-title").textContent = existing ? "ট্যাগ বদলাও" : "নতুন ট্যাগ";
+  $("#tag-title").textContent = existing ? tr("tag.edit") : tr("tag.new");
   $("#tag-name").value = existing ? existing.name : "";
   $("#tag-delete").hidden = !existing;
   renderTagColors();
@@ -916,7 +1104,7 @@ function saveTag() {
   if (!name || !tagEditing) return;
   const clash = meta.tags.some((t) => t.name.toLowerCase() === name.toLowerCase() && t.id !== tagEditing.id);
   if (clash) {
-    toast("এই নামে একটি ট্যাগ আগেই আছে।");
+    toast(tr("tag.exists"));
     return;
   }
   if (tagEditing.id) {
@@ -934,7 +1122,7 @@ function saveTag() {
 function deleteTag() {
   const tag = tagEditing && meta.tag(tagEditing.id);
   if (!tag) return;
-  if (!confirm(`"${tag.name}" ট্যাগটি সব গান থেকে সরানো হবে। সরাবে?`)) return;
+  if (!confirm(tr("tag.confirmDelete", { name: tag.name }))) return;
   meta.deleteTag(tag.id);
   if (mode === "tag" && sub === tag.id) sub = null;
   if (editing) {
@@ -959,19 +1147,19 @@ function finishSelecting() {
 
 function renderPlPicker() {
   const n = plTarget.ids.length;
-  $("#plpick-title").textContent = `${n === 1 ? "গানটি" : `${n}টি গান`} কোন প্লেলিস্টে যোগ করবে?`;
+  $("#plpick-title").textContent = n === 1 ? tr("plpick.one") : tr("plpick.many", { n });
   $("#plpick-list").innerHTML = meta.data.playlists
     .map(
       (p) =>
-        `<button class="sheet-btn" type="button" data-pl="${esc(p.id)}">${icon("queue")}${esc(p.name)}<span class="muted"> · ${p.ids.length}টি গান</span></button>`
+        `<button class="sheet-btn" type="button" data-pl="${esc(p.id)}">${icon("queue")}${esc(p.name)}<span class="muted"> · ${tr("plpick.songs", { n: p.ids.length })}</span></button>`
     )
     .join("");
-  $("#plpick-new").innerHTML = icon("plus") + "নতুন প্লেলিস্ট বানিয়ে যোগ করো";
+  $("#plpick-new").innerHTML = icon("plus") + tr("plpick.new");
 }
 
 function openPlPicker(ids) {
   if (!ids.length) {
-    toast("আগে কিছু গান বাছাই করো।");
+    toast(tr("sel.first"));
     return;
   }
   plTarget = { ids };
@@ -982,7 +1170,7 @@ function openPlPicker(ids) {
 function openPlDialog(id, addIds = []) {
   const existing = id ? meta.playlist(id) : null;
   plEditing = { id: existing ? existing.id : null, addIds };
-  $("#pl-title").textContent = existing ? "প্লেলিস্টের নাম বদলাও" : "নতুন প্লেলিস্ট";
+  $("#pl-title").textContent = existing ? tr("pl.editTitle") : tr("pl.newBtn");
   $("#pl-name").value = existing ? existing.name : "";
   $("#pldlg").hidden = false;
   setTimeout(() => $("#pl-name").focus(), 60);
@@ -998,7 +1186,7 @@ function savePlaylist() {
   if (!name || !plEditing) return;
   const clash = meta.data.playlists.some((p) => p.name.toLowerCase() === name.toLowerCase() && p.id !== plEditing.id);
   if (clash) {
-    toast("এই নামে একটি প্লেলিস্ট আগেই আছে।");
+    toast(tr("pl.exists"));
     return;
   }
   const { id, addIds } = plEditing;
@@ -1009,7 +1197,7 @@ function savePlaylist() {
   }
   finishSelecting();
   meta.createPlaylist(name, addIds);
-  toast(addIds.length ? `"${name}" প্লেলিস্টে ${addIds.length}টি গান যোগ হয়েছে।` : `"${name}" প্লেলিস্ট বানানো হয়েছে।`);
+  toast(addIds.length ? tr("pl.added", { name, n: addIds.length }) : tr("pl.created", { name }));
 }
 
 function addToPlaylistAndClose(plId) {
@@ -1022,14 +1210,14 @@ function addToPlaylistAndClose(plId) {
   const n = meta.addToPlaylist(plId, ids);
   if (!n) {
     renderSongs();
-    toast("গানগুলো আগেই এই প্লেলিস্টে আছে।");
-  } else toast(`"${pl.name}" প্লেলিস্টে ${n}টি গান যোগ হয়েছে।`);
+    toast(tr("pl.already"));
+  } else toast(tr("pl.added", { name: pl.name, n }));
 }
 
 function deleteCurrentPlaylist() {
   const pl = meta.playlist(sub);
   if (!pl) return;
-  if (!confirm(`"${pl.name}" প্লেলিস্টটি মোছা হবে। গানগুলো মুছবে না। মুছবে?`)) return;
+  if (!confirm(tr("pl.confirmDelete", { name: pl.name }))) return;
   sub = null;
   plReorder = false;
   meta.deletePlaylist(pl.id);
@@ -1087,17 +1275,17 @@ async function reconcileFolders() {
   busy = true;
   try {
     for (const f of missing) {
-      setBusy(`অন্য ডিভাইসের ফোল্ডার "${f.name}" স্ক্যান হচ্ছে…`);
+      setBusy(tr("folders.syncScan", { name: f.name }));
       const info = await getFolderInfo(f.id);
       await scanInto(info, true);
     }
     prefs.foldersSynced = true;
     savePrefs();
     renderAll();
-    toast("অন্য ডিভাইসের ফোল্ডারগুলো যোগ হয়েছে।");
+    toast(tr("folders.syncDone"));
   } catch (err) {
     if (err instanceof DriveError && (err.status === 404 || err.message === "not-a-folder")) {
-      toast("অন্য ডিভাইসে যোগ করা একটি ফোল্ডার এখানে খোলা যায়নি।");
+      toast(tr("folders.syncFail"));
     } else handleDriveError(err);
   } finally {
     reconciling = false;
@@ -1114,7 +1302,7 @@ function radioRow(s, saved, mine) {
   const li = document.createElement("li");
   li.className = "row" + (isLive(s) ? " is-live" : "");
   li.dataset.id = stationKey(s);
-  const sub = mine ? (s.custom ? "নিজের যোগ করা" : "") : s.tags.split(",").slice(0, 3).filter(Boolean).join(", ");
+  const sub = mine ? (s.custom ? tr("radio.custom") : "") : s.tags.split(",").slice(0, 3).filter(Boolean).join(", ");
   li.innerHTML = `
     <button class="row-main" type="button" data-play>
       <span class="row-idx">${icon("radio")}</span>
@@ -1124,7 +1312,7 @@ function radioRow(s, saved, mine) {
       </span>
     </button>
     <button class="row-more" type="button" ${mine ? "data-unsave" : "data-save"} aria-label="${
-      mine ? "আমার রেডিও থেকে সরাও" : saved ? "আমার রেডিওতে আছে" : "আমার রেডিওতে রাখো"
+      mine ? tr("radio.unsave") : saved ? tr("radio.saved") : tr("radio.save")
     }" ${!mine && saved ? "disabled" : ""}>${icon(mine ? "close" : saved ? "star" : "star-outline")}</button>`;
   return li;
 }
@@ -1141,15 +1329,15 @@ function renderRadioNow() {
   if (!st) return;
   $("#radio-now-name").textContent = st.name;
   const label = {
-    loading: "যুক্ত হচ্ছে…",
-    playing: "সরাসরি বাজছে",
-    paused: "থামানো আছে",
-    error: "এই রেডিও এখন বাজছে না",
+    loading: tr("radio.connecting"),
+    playing: tr("radio.live"),
+    paused: tr("radio.paused"),
+    error: tr("radio.error"),
   }[radio.status];
   $("#radio-now-state").textContent = label || "";
   const playing = radio.status === "playing" || radio.status === "loading";
   $("#radio-toggle").innerHTML = icon(playing ? "pause" : "play");
-  $("#radio-toggle").setAttribute("aria-label", playing ? "থামাও" : "চালাও");
+  $("#radio-toggle").setAttribute("aria-label", playing ? tr("ctl.pause") : tr("ctl.play"));
   $("#radio-stop").innerHTML = icon("stop");
 }
 
@@ -1161,7 +1349,7 @@ function renderRadio() {
   if (!meta.data.radio.length) {
     const note = document.createElement("li");
     note.className = "list-note";
-    note.textContent = "এখনো কোনো রেডিও রাখা হয়নি। নিচের তালিকার তারা চিহ্নে চাপো।";
+    note.textContent = tr("radio.noneSaved");
     mine.append(note);
   }
   meta.data.radio.forEach((r) => mine.append(radioRow(r, true, true)));
@@ -1172,12 +1360,12 @@ function renderRadio() {
   const shown = radioList.filter((s) => !q || s.name.toLowerCase().includes(q) || s.tags.toLowerCase().includes(q));
   shown.forEach((s) => list.append(radioRow(s, savedIds.has(s.id), false)));
   const msg = $("#radio-msg");
-  if (radioState === "loading") msg.textContent = "তালিকা আনা হচ্ছে…";
+  if (radioState === "loading") msg.textContent = tr("radio.loading");
   else if (radioState === "error")
-    msg.textContent = "তালিকা আনা যায়নি। ইন্টারনেট দেখে ওপরের নতুন করে আনার বোতাম চাপো। চাইলে নিজের রেডিওর লিংক যোগ করে নিতে পারো।";
-  else if (radioState === "ready" && !shown.length) msg.textContent = q ? "কিছু পাওয়া যায়নি।" : "তালিকা খালি।";
-  else if (radioStale) msg.textContent = "ইন্টারনেটে নতুন তালিকা আনা যায়নি, আগের সংরক্ষণ করা তালিকা দেখানো হচ্ছে।";
-  else msg.textContent = radioState === "ready" ? `${shown.length}টি রেডিও` : "";
+    msg.textContent = tr("radio.loadFail");
+  else if (radioState === "ready" && !shown.length) msg.textContent = q ? tr("songs.nothing") : tr("radio.emptyList");
+  else if (radioStale) msg.textContent = tr("radio.stale");
+  else msg.textContent = radioState === "ready" ? tr("radio.n", { n: shown.length }) : "";
 }
 
 async function ensureRadioList(force = false) {
@@ -1201,6 +1389,9 @@ function playStation(id) {
   if (!st) return;
   if (player.status === "playing") player.audio.pause();
   radio.play(st);
+  prefs.lastStation = { id: st.id, name: st.name, url: st.url, tags: st.tags || "", custom: !!st.custom };
+  savePrefs();
+  renderQuick();
 }
 
 function addCustomStation() {
@@ -1208,13 +1399,13 @@ function addCustomStation() {
   const url = $("#radio-url").value.trim();
   if (!name) return;
   if (!/^https:\/\//i.test(url)) {
-    toast("লিংকটি https দিয়ে শুরু হতে হবে। http লিংক ফোনে বাজে না।");
+    toast(tr("radio.https"));
     return;
   }
   meta.saveStation({ id: `c${Date.now().toString(36)}`, name, url, custom: true });
   $("#radio-name").value = "";
   $("#radio-url").value = "";
-  toast(`"${name}" আমার রেডিওতে যোগ হয়েছে।`);
+  toast(tr("radio.added", { name }));
 }
 
 // ---------- link to Drive ----------
@@ -1225,7 +1416,7 @@ function renderGrab() {
   const keep = select.value || prefs.grabFolder || "";
   select.innerHTML = folders.length
     ? folders.map((f) => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join("")
-    : `<option value="">আগে একটি ফোল্ডার যোগ করো</option>`;
+    : `<option value="">${tr("folders.noneYet")}</option>`;
   if (folders.some((f) => f.id === keep)) select.value = keep;
   if (document.activeElement !== $("#grab-script")) $("#grab-script").value = prefs.scriptUrl || "";
   if (document.activeElement !== $("#grab-key")) $("#grab-key").value = prefs.scriptKey || "";
@@ -1246,27 +1437,27 @@ function saveGrabSettings() {
   const url = $("#grab-script").value.trim();
   const key = $("#grab-key").value.trim();
   if (url && !/^https:\/\/script\.google\.com\//i.test(url)) {
-    toast("ঠিকানাটি https://script.google.com/ দিয়ে শুরু হওয়া উচিত।");
+    toast(tr("grab.badAddress"));
     return;
   }
   prefs.scriptUrl = url;
   prefs.scriptKey = key;
   savePrefs();
-  toast("সংরক্ষণ করা হয়েছে।");
+  toast(tr("common.saved"));
 }
 
 function grabErrorText(err) {
   const code = String((err && err.message) || "");
-  if (code === "secret") return "গোপন শব্দ মেলেনি। সেটিংয়ে Apps Script-এর শব্দটাই বসাও।";
-  if (code === "not-audio") return "লিংকটি গানের ফাইল মনে হচ্ছে না। সরাসরি MP3 ফাইলের লিংক দিতে হবে।";
-  if (code === "too-big") return "ফাইলটি খুব বড়। ৫০ মেগাবাইটের বেশি নামানো যায় না।";
-  if (code === "folder") return "ড্রাইভের ফোল্ডারটি পাওয়া যায়নি।";
-  if (code === "url") return "লিংকটি ঠিক নয়।";
-  if (/^http \d+/.test(code)) return `সাইটটি ফাইল দিতে রাজি হয়নি (${code.replace("http ", "কোড ")})।`;
+  if (code === "secret") return tr("grab.eSecret");
+  if (code === "not-audio") return tr("grab.eNotAudio");
+  if (code === "too-big") return tr("grab.eBig");
+  if (code === "folder") return tr("grab.eFolder");
+  if (code === "url") return tr("grab.eUrl");
+  if (/^http \d+/.test(code)) return tr("grab.eHttp", { code: tr("grab.httpCode", { code: code.replace("http ", "") }) });
   if (err instanceof SyntaxError)
-    return 'Apps Script ঠিকমতো চালু হয়নি। "Anyone" অ্যাক্সেস দিয়ে Deploy করেছ কি না দেখো।';
-  if (err instanceof TypeError) return "Apps Script-এর ঠিকানা ঠিক আছে কি না আর ইন্টারনেট দেখো।";
-  return "গানটি ড্রাইভে রাখা যায়নি।";
+    return tr("grab.eScript");
+  if (err instanceof TypeError) return tr("grab.eNet");
+  return tr("grab.eOther");
 }
 
 async function grabLink() {
@@ -1280,27 +1471,27 @@ async function grabLink() {
     if (!/^https?:$/.test(u.protocol)) throw new Error("scheme");
     host = u.hostname;
   } catch {
-    toast("লিংকটি http বা https দিয়ে শুরু হতে হবে।");
+    toast(tr("grab.needHttp"));
     return;
   }
   if (BLOCKED_HOSTS.test(host)) {
-    toast("ইউটিউব, স্পটিফাই বা এই ধরনের সাইটের লিংক থেকে গান নামানো যায় না। সরাসরি MP3 ফাইলের লিংক দাও।");
+    toast(tr("grab.noStreaming"));
     return;
   }
   if (!prefs.scriptUrl || !prefs.scriptKey) {
     $("#grab-settings").open = true;
-    toast("আগে নিচের সেটিংয়ে Apps Script-এর ঠিকানা আর গোপন শব্দ বসাও।");
+    toast(tr("grab.needSetup"));
     return;
   }
   const folder = folders.find((f) => f.id === folderId);
   if (!folder) {
-    toast("আগে একটি ড্রাইভ ফোল্ডার যোগ করো।");
+    toast(tr("folders.addFirst"));
     return;
   }
   prefs.grabFolder = folderId;
   savePrefs();
   busy = true;
-  setGrabBusy("ড্রাইভে নামানো হচ্ছে… বড় ফাইলে কিছুক্ষণ লাগতে পারে।");
+  setGrabBusy(tr("grab.busy"));
   let savedName = "";
   try {
     const res = await fetch(prefs.scriptUrl, {
@@ -1311,7 +1502,7 @@ async function grabLink() {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "unknown");
-    savedName = data.name || name || "গান";
+    savedName = data.name || name || tr("grab.song");
     $("#grab-url").value = "";
     $("#grab-name").value = "";
   } catch (err) {
@@ -1321,17 +1512,18 @@ async function grabLink() {
     setGrabBusy("");
   }
   if (savedName) {
-    toast(`"${savedName}" ড্রাইভে জমা হয়েছে।`);
+    toast(tr("grab.done", { name: savedName }));
     await rescanFolder(folder);
   }
 }
 
 // ---------- cloud sync ----------
 function setSyncStatus(state) {
+  syncState = state;
   const el = $("#sync-status");
-  if (state === "ok") el.textContent = "ক্লাউডে সংরক্ষণ চালু আছে।";
+  if (state === "ok") el.textContent = tr("sync.ok");
   else if (state === "error")
-    el.textContent = "ক্লাউডে সংরক্ষণ বন্ধ। বিবরণ, ট্যাগ আর প্লেলিস্ট শুধু এই ফোনে থাকছে (SETUP-bn.md-এর ৬ নম্বর ধাপ দেখো)।";
+    el.textContent = tr("sync.error");
   else el.textContent = "";
 }
 
@@ -1353,7 +1545,7 @@ function connectCloud(user) {
       setSyncStatus(state);
       if (state === "error" && !syncWarned) {
         syncWarned = true;
-        toast("ক্লাউডে সংরক্ষণ চালু নেই, তাই পরিবর্তন শুধু এই ফোনে থাকছে।");
+        toast(tr("sync.toast"));
       }
     },
   });
@@ -1368,9 +1560,9 @@ function loginError(err) {
   const code = err && err.code;
   if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return;
   const msg = $("#login-msg");
-  if (code === "auth/unauthorized-domain") msg.textContent = "এই ঠিকানা Firebase-এ অনুমোদিত নয়। SETUP-bn.md-এর ৭ নম্বর ধাপ দেখো।";
-  else if (code === "auth/network-request-failed") msg.textContent = "ইন্টারনেট সংযোগ দেখো।";
-  else msg.textContent = `প্রবেশ করা যায়নি (${code || "অজানা সমস্যা"})।`;
+  if (code === "auth/unauthorized-domain") msg.textContent = tr("login.unauth");
+  else if (code === "auth/network-request-failed") msg.textContent = tr("login.offline");
+  else msg.textContent = tr("login.failed", { code: code || tr("login.unknown") });
   toast(msg.textContent);
 }
 
@@ -1388,7 +1580,7 @@ async function reconnect() {
   try {
     const user = await signIn();
     updateBanner();
-    if (user) toast("ড্রাইভ যুক্ত হয়েছে।");
+    if (user) toast(tr("account.reconnected"));
     if (player.awaitingAuth) player.retry();
     reconcileFolders();
   } catch (err) {
@@ -1411,6 +1603,8 @@ function showApp(user) {
   $("#login").hidden = true;
   $("#app").hidden = false;
   $("#account-email").textContent = user.email || user.displayName || "";
+  userName = String(user.displayName || "").trim().split(/\s+/)[0] || "";
+  renderGreeting();
   connectCloud(user);
   if (!appReady) {
     appReady = true;
@@ -1421,12 +1615,28 @@ function showApp(user) {
   updateBanner();
 }
 
+// ---------- language ----------
+function setLanguage(next) {
+  setLang(next);
+  prefs.lang = getLang();
+  savePrefs();
+  applyStatic();
+  renderNav();
+  renderControls();
+  renderTrack();
+  renderQueue();
+  renderAll();
+  setSyncStatus(syncState);
+  if (radio.station) radio.wireMediaSession();
+}
+
 // ---------- rendering everything ----------
 function renderAll() {
   renderSongs();
   renderFolders();
   renderRadio();
   renderLook();
+  renderDash();
 }
 
 // ---------- events ----------
@@ -1443,7 +1653,7 @@ function wireEvents() {
 
   $("#btn-play").addEventListener("click", () => {
     if (!player.current) {
-      toast("আগে একটি গান বেছে নাও।");
+      toast(tr("now.pickFirst"));
       showTab("songs");
       return;
     }
@@ -1516,7 +1726,7 @@ function wireEvents() {
     renderSongs();
   });
   $("#pl-play").addEventListener("click", () => {
-    if (!songsView.length) return toast("এই প্লেলিস্টে এখনো গান নেই।");
+    if (!songsView.length) return toast(tr("pl.empty"));
     player.setQueue(songsView, 0);
   });
   $("#pl-reorder").addEventListener("click", () => {
@@ -1558,10 +1768,10 @@ function wireEvents() {
   });
   $("#sel-edit").addEventListener("click", openBulkEdit);
   $("#btn-undo").addEventListener("click", () => {
-    if (meta.undo()) toast("পরিবর্তন ফিরিয়ে নেওয়া হয়েছে।");
+    if (meta.undo()) toast(tr("undo.done"));
   });
   $("#btn-redo").addEventListener("click", () => {
-    if (meta.redo()) toast("আবার করা হয়েছে।");
+    if (meta.redo()) toast(tr("redo.done"));
   });
 
   $("#songs-list").addEventListener("click", (e) => {
@@ -1602,6 +1812,57 @@ function wireEvents() {
     if (e.target.closest("[data-more]")) openSheet(track);
     else player.setQueue(songsView, Number(row.dataset.i));
   });
+  $("#panel-now").addEventListener("click", (e) => {
+    const quick = e.target.closest("[data-quick]");
+    if (quick) return quickPlay(quick.dataset.quick);
+    const sleep = e.target.closest("[data-sleep]");
+    if (sleep) return setSleep(Number(sleep.dataset.sleep));
+    const card = e.target.closest(".card");
+    if (!card) return;
+    const list = card.parentElement.id === "cards-recent" ? dashRecent : dashMost;
+    player.setQueue(list, Number(card.dataset.i));
+  });
+
+  // press and hold a song to start selecting
+  const songList = $("#songs-list");
+  let pressTimer = 0;
+  let pressAt = null;
+  let swallowClick = false;
+  songList.addEventListener("pointerdown", (e) => {
+    const row = e.target.closest(".row:not(.group-row)");
+    if (!row || selecting || reorderOn() || e.target.closest("[data-more],[data-pl-up],[data-pl-down],[data-pl-del]")) return;
+    pressAt = { x: e.clientX, y: e.clientY };
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      const track = songsView[Number(row.dataset.i)];
+      if (!track) return;
+      swallowClick = true;
+      plReorder = false;
+      selected.add(track.id);
+      setSelecting(true);
+      if (navigator.vibrate) navigator.vibrate(15);
+    }, 500);
+  });
+  songList.addEventListener("pointermove", (e) => {
+    if (pressAt && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 10) clearTimeout(pressTimer);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((name) =>
+    songList.addEventListener(name, () => {
+      clearTimeout(pressTimer);
+      setTimeout(() => (swallowClick = false), 300);
+    })
+  );
+  songList.addEventListener("contextmenu", (e) => e.preventDefault());
+  songList.addEventListener(
+    "click",
+    (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.stopImmediatePropagation();
+    },
+    true
+  );
+
   $("#songs-empty").addEventListener("click", (e) => {
     const go = e.target.closest("[data-go]");
     if (go) showTab(go.dataset.go);
@@ -1634,8 +1895,13 @@ function wireEvents() {
     else rescanFolder(folder);
   });
 
-  $("#themes-color").addEventListener("click", pickTheme);
-  $("#themes-night").addEventListener("click", pickTheme);
+  $("#themes").addEventListener("click", pickTheme);
+  $("#langs").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-lang]");
+    if (btn) setLanguage(btn.dataset.lang);
+  });
+  $("#btn-lang").addEventListener("click", () => setLanguage(getLang() === "en" ? "bn" : "en"));
+  $("#btn-lang-login").addEventListener("click", () => setLanguage(getLang() === "en" ? "bn" : "en"));
   $("#fonts").addEventListener("click", (e) => {
     const row = e.target.closest("[data-font-id]");
     if (!row) return;
@@ -1650,18 +1916,18 @@ function wireEvents() {
   $("#sheet-next").addEventListener("click", () => {
     if (sheetTrack) player.playNext(sheetTrack);
     closeSheet();
-    toast("এরপর বাজবে।");
+    toast(tr("queue.playNext"));
   });
   $("#sheet-queue").addEventListener("click", () => {
     if (sheetTrack) player.enqueue(sheetTrack);
     closeSheet();
-    toast("কিউয়ের শেষে যোগ হয়েছে।");
+    toast(tr("queue.added"));
   });
   $("#sheet-fav").addEventListener("click", () => {
     if (sheetTrack) {
       const on = !meta.get(sheetTrack.id).fav;
       meta.toggleFav(sheetTrack.id);
-      toast(on ? "পছন্দের তালিকায় যোগ হয়েছে।" : "পছন্দের তালিকা থেকে সরানো হয়েছে।");
+      toast(on ? tr("fav.added") : tr("fav.removed"));
     }
     closeSheet();
   });
@@ -1759,7 +2025,7 @@ function wireEvents() {
       const st = stationById(id);
       if (st) {
         meta.saveStation(st);
-        toast(`"${st.name}" আমার রেডিওতে রাখা হয়েছে।`);
+        toast(tr("radio.kept", { name: st.name }));
       }
     } else if (e.target.closest("[data-unsave]")) {
       if (radio.station && radio.station.id === id) radio.stop();
@@ -1774,7 +2040,7 @@ function wireEvents() {
       const st = stationById(row.dataset.id);
       row.classList.toggle("is-live", !!st && isLive(st));
     });
-    if (radio.status === "error") toast("এই রেডিও এখন বাজছে না। অন্যটি চেষ্টা করো।");
+    if (radio.status === "error") toast(tr("radio.errorToast"));
   });
   radio.on("release", () => player.wireMediaSession());
 
@@ -1813,24 +2079,27 @@ function wirePlayer() {
     .on("progress", ({ id, loaded, total }) => {
       if (player.status !== "loading" || !player.current || player.current.id !== id) return;
       const pct = total ? Math.min(99, Math.round((loaded / total) * 100)) : 0;
-      $("#now-status").textContent = pct ? `গান লোড হচ্ছে… ${pct}%` : "গান লোড হচ্ছে…";
+      $("#now-status").textContent = pct ? tr("now.loadingPct", { pct }) : tr("now.loading");
     })
     .on("error", () => {
       const more = player.index + 1 < player.order.length;
-      toast(more ? "এই ফাইল বাজানো যাচ্ছে না, পরেরটা চালানো হচ্ছে।" : "এই ফাইল বাজানো যাচ্ছে না।");
+      toast(more ? tr("player.badFileNext") : tr("player.badFile"));
     })
     .on("needauth", () => {
       updateBanner();
       $("#banner").hidden = false;
-      toast('ড্রাইভের সঙ্গে সংযোগের সময় শেষ। "আবার যুক্ত করো" চাপো।');
+      toast(tr("player.expired"));
     })
-    .on("blocked", () => toast("চালাতে চালানোর বোতামে চাপ দাও।"));
+    .on("blocked", () => toast(tr("player.blocked")));
 }
 
 // ---------- boot ----------
 async function boot() {
+  setLang(prefs.lang);
+  applyStatic();
   applyTheme(prefs.theme);
   applyFont(prefs.font);
+  buildEq();
   renderNav();
   renderControls();
   wireEvents();
@@ -1844,7 +2113,7 @@ async function boot() {
     $("#splash").hidden = true;
     $("#login").hidden = false;
     $("#btn-login").disabled = true;
-    $("#login-msg").textContent = "Firebase-এর তথ্য এখনো বসানো হয়নি। js/firebase-config.js ফাইলটি খুলে নিজের তথ্য বসাও।";
+    $("#login-msg").textContent = tr("login.noconfig");
     return;
   }
   try {

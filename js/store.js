@@ -18,6 +18,7 @@ function write(key, value) {
 }
 
 const DEFAULT_PREFS = {
+  lang: "en",
   theme: "yellow",
   font: "lato",
   shuffle: false,
@@ -27,6 +28,7 @@ const DEFAULT_PREFS = {
   scriptKey: "",
   grabFolder: "",
   foldersSynced: false,
+  lastStation: null,
 };
 
 export const store = {
@@ -48,9 +50,16 @@ export const store = {
   saveTracks(tracks) {
     return write("mb.tracks", tracks);
   },
+  stats() {
+    const s = read("mb.stats", {});
+    return { plays: s.plays && typeof s.plays === "object" ? s.plays : {}, recent: Array.isArray(s.recent) ? s.recent : [] };
+  },
+  saveStats(stats) {
+    write("mb.stats", stats);
+  },
   clearAll() {
     try {
-      ["mb.prefs", "mb.folders", "mb.tracks", "mb.token", "mb.meta", "mb.radio"].forEach((k) => localStorage.removeItem(k));
+      ["mb.prefs", "mb.folders", "mb.tracks", "mb.token", "mb.meta", "mb.radio", "mb.stats"].forEach((k) => localStorage.removeItem(k));
     } catch {
       /* ignore */
     }

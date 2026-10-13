@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="bn" data-theme="yellow" data-font="lato">
+<html lang="en" data-theme="yellow" data-font="lato">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MP3 Blast</title>
-  <meta name="description" content="গুগল ড্রাইভের গান বাজানোর নিজস্ব প্লেয়ার">
+  <meta name="description" content="A personal player for the songs in your Google Drive.">
   <meta name="theme-color" content="#FFD42E">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -24,12 +24,13 @@
         var p = JSON.parse(localStorage.getItem("mb.prefs") || "{}");
         if (p.theme) document.documentElement.setAttribute("data-theme", p.theme);
         if (p.font) document.documentElement.setAttribute("data-font", p.font);
+        if (p.lang) document.documentElement.setAttribute("lang", p.lang);
       } catch (e) {}
     })();
   </script>
 </head>
 <body>
-  <div id="splash" class="splash" aria-label="লোড হচ্ছে">
+  <div id="splash" class="splash" aria-label="Loading" data-i18n-attr="aria-label:splash.loading">
     <div class="wordmark wordmark-big">
       <svg class="bars" viewBox="0 0 28 24" aria-hidden="true"><rect x="1" y="9" width="4" height="10" rx="2"/><rect x="7.5" y="4" width="4" height="20" rx="2"/><rect x="14" y="1" width="4" height="22" rx="2"/><rect x="20.5" y="6" width="4" height="14" rx="2"/></svg>
       <span>MP3 Blast</span>
@@ -42,10 +43,11 @@
         <svg class="bars" viewBox="0 0 28 24" aria-hidden="true"><rect x="1" y="9" width="4" height="10" rx="2"/><rect x="7.5" y="4" width="4" height="20" rx="2"/><rect x="14" y="1" width="4" height="22" rx="2"/><rect x="20.5" y="6" width="4" height="14" rx="2"/></svg>
         <span>MP3 Blast</span>
       </div>
-      <p class="login-sub">তোমার ড্রাইভের গান, তোমার নিজের প্লেয়ারে।</p>
-      <button id="btn-login" class="btn btn-primary" type="button">গুগল দিয়ে প্রবেশ করো</button>
+      <p class="login-sub" data-i18n="login.sub">Your Drive songs, in your own player.</p>
+      <button id="btn-login" class="btn btn-primary" type="button" data-i18n="login.btn">Sign in with Google</button>
       <p id="login-msg" class="login-msg" role="alert"></p>
-      <p class="login-note">ড্রাইভের গান দেখা আর গানের নাম বদলানোর অনুমতি চাওয়া হবে। অ্যাপ কিছু মুছে না।</p>
+      <p class="login-note" data-i18n="login.note">It will ask permission to see your Drive songs and rename them. The app never deletes anything.</p>
+      <button id="btn-lang-login" class="lang-btn" type="button" data-i18n="lang.button" data-i18n-attr="aria-label:lang.switch" aria-label="Change language">বাংলা</button>
     </div>
   </section>
 
@@ -55,57 +57,81 @@
         <svg class="bars" viewBox="0 0 28 24" aria-hidden="true"><rect x="1" y="9" width="4" height="10" rx="2"/><rect x="7.5" y="4" width="4" height="20" rx="2"/><rect x="14" y="1" width="4" height="22" rx="2"/><rect x="20.5" y="6" width="4" height="14" rx="2"/></svg>
         <span>MP3 Blast</span>
       </div>
+      <button id="btn-lang" class="lang-btn" type="button" data-i18n="lang.button" data-i18n-attr="aria-label:lang.switch" aria-label="Change language">বাংলা</button>
     </header>
 
     <div id="banner" class="banner" role="alert" hidden>
-      <span>ড্রাইভের সঙ্গে সংযোগের সময় শেষ হয়েছে।</span>
-      <button id="btn-reconnect" class="btn btn-small" type="button">আবার যুক্ত করো</button>
+      <span data-i18n="banner.expired">Your Drive connection has expired.</span>
+      <button id="btn-reconnect" class="btn btn-small" type="button" data-i18n="banner.reconnect">Reconnect</button>
     </div>
 
     <main id="main" class="main">
-      <!-- বাজছে -->
-      <section id="panel-now" class="panel active" aria-label="এখন বাজছে">
+      <!-- now playing -->
+      <section id="panel-now" class="panel active" aria-label="Now playing" data-i18n-attr="aria-label:now.region">
+        <div class="greet">
+          <h2 id="greet-title" class="greet-title"></h2>
+          <p id="greet-sub" class="greet-sub"></p>
+        </div>
         <div class="now">
-          <button id="disc" class="disc" type="button" aria-label="চালাও বা থামাও">
+          <button id="disc" class="disc" type="button" aria-label="Play or pause" data-i18n-attr="aria-label:now.toggle">
             <span class="disc-label"><span id="disc-letter" class="disc-letter"></span></span>
           </button>
           <div class="now-meta">
-            <h2 id="now-title" class="now-title">কিছু বাজছে না</h2>
-            <p id="now-sub" class="now-sub">গান ট্যাবে গিয়ে একটি গান বেছে নাও।</p>
+            <h2 id="now-title" class="now-title" data-i18n="now.nothing">Nothing playing</h2>
+            <p id="now-sub" class="now-sub" data-i18n="now.pick">Go to the Songs tab and pick a song.</p>
             <p id="now-status" class="now-status" aria-live="polite"></p>
           </div>
+          <div id="eq" class="eq" aria-hidden="true"></div>
           <div class="seekwrap">
             <span id="t-cur" class="time">0:00</span>
-            <input id="seek" class="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="গানের অবস্থান">
+            <input id="seek" class="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position" data-i18n-attr="aria-label:now.seek">
             <span id="t-dur" class="time">0:00</span>
           </div>
           <div class="controls">
-            <button id="btn-shuffle" class="ctl" type="button" aria-pressed="false" aria-label="এলোমেলো করো"></button>
-            <button id="btn-prev" class="ctl" type="button" aria-label="আগের গান"></button>
-            <button id="btn-play" class="ctl ctl-main" type="button" aria-label="চালাও"></button>
-            <button id="btn-next" class="ctl" type="button" aria-label="পরের গান"></button>
-            <button id="btn-repeat" class="ctl" type="button" aria-pressed="false" aria-label="পুনরাবৃত্তি"></button>
+            <button id="btn-shuffle" class="ctl" type="button" aria-pressed="false" aria-label="Shuffle" data-i18n-attr="aria-label:ctl.shuffle"></button>
+            <button id="btn-prev" class="ctl" type="button" aria-label="Previous song" data-i18n-attr="aria-label:ctl.prev"></button>
+            <button id="btn-play" class="ctl ctl-main" type="button" aria-label="Play" data-i18n-attr="aria-label:ctl.play"></button>
+            <button id="btn-next" class="ctl" type="button" aria-label="Next song" data-i18n-attr="aria-label:ctl.next"></button>
+            <button id="btn-repeat" class="ctl" type="button" aria-pressed="false" aria-label="Repeat" data-i18n-attr="aria-label:ctl.repeat"></button>
           </div>
           <div id="vol-wrap" class="vol" hidden>
             <span id="vol-ic"></span>
-            <input id="vol" class="seek" type="range" min="0" max="100" value="100" step="1" aria-label="শব্দ">
+            <input id="vol" class="seek" type="range" min="0" max="100" value="100" step="1" aria-label="Volume" data-i18n-attr="aria-label:ctl.volume">
           </div>
         </div>
 
         <div class="queue">
           <div class="section-head">
-            <h3>এরপর আসছে</h3>
-            <button id="btn-clear-queue" class="link-btn" type="button" hidden>সব সরাও</button>
+            <h3 data-i18n="queue.title">Up next</h3>
+            <button id="btn-clear-queue" class="link-btn" type="button" hidden data-i18n="queue.clear">Clear all</button>
           </div>
           <ol id="queue-list" class="list"></ol>
         </div>
+
+        <div class="dash">
+          <div class="section-head"><h3 data-i18n="dash.quick">Quick play</h3></div>
+          <div class="quick">
+            <button id="q-fav" class="quick-btn" type="button" data-quick="fav"><span class="quick-ic" data-ic="heart"></span><span data-i18n="dash.favMix">Favourites mix</span></button>
+            <button id="q-random" class="quick-btn" type="button" data-quick="random"><span class="quick-ic" data-ic="shuffle"></span><span data-i18n="dash.random">Random 50</span></button>
+            <button id="q-radio" class="quick-btn" type="button" data-quick="radio"><span class="quick-ic" data-ic="radio"></span><span data-i18n="dash.radio">Radio</span><span id="q-radio-sub" class="quick-sub"></span></button>
+          </div>
+
+          <div class="section-head"><h3 data-i18n="sleep.title">Sleep timer</h3><span id="sleep-left" class="sleep-left" role="status"></span></div>
+          <div id="sleep-opts" class="chips"></div>
+
+          <div class="section-head"><h3 data-i18n="dash.recent">Recently played</h3></div>
+          <div id="cards-recent" class="cards"></div>
+
+          <div class="section-head"><h3 data-i18n="dash.most">Most played</h3></div>
+          <div id="cards-most" class="cards"></div>
+        </div>
       </section>
 
-      <!-- গান -->
-      <section id="panel-songs" class="panel" aria-label="গান">
+      <!-- songs -->
+      <section id="panel-songs" class="panel" aria-label="Songs" data-i18n-attr="aria-label:tab.songs">
         <div class="searchbox">
           <span id="search-ic" class="search-ic"></span>
-          <input id="search" type="search" placeholder="গান খোঁজো" autocomplete="off" aria-label="গান খোঁজো">
+          <input id="search" type="search" placeholder="Search songs" autocomplete="off" aria-label="Search songs" data-i18n-attr="placeholder:songs.search;aria-label:songs.search">
         </div>
         <div id="chips" class="chips"></div>
         <div id="crumb" class="crumb" hidden>
@@ -113,16 +139,16 @@
         </div>
         <div id="pl-bar" class="pl-bar" hidden>
           <button id="pl-play" class="btn btn-small btn-primary" type="button"></button>
-          <button id="pl-reorder" class="btn btn-small" type="button" aria-pressed="false">ক্রম বদলাও</button>
-          <button id="pl-rename" class="btn btn-small" type="button">নাম বদলাও</button>
-          <button id="pl-delete" class="btn btn-small" type="button">মুছে ফেলো</button>
+          <button id="pl-reorder" class="btn btn-small" type="button" aria-pressed="false" data-i18n="pl.reorder">Reorder</button>
+          <button id="pl-rename" class="btn btn-small" type="button" data-i18n="pl.rename">Rename</button>
+          <button id="pl-delete" class="btn btn-small" type="button" data-i18n="pl.delete">Delete</button>
         </div>
         <div class="count-row">
           <p id="songs-count" class="count"></p>
           <div class="undo-redo">
-            <button id="btn-select" class="btn btn-small" type="button" aria-pressed="false">বাছাই করো</button>
-            <button id="btn-undo" class="icon-btn" type="button" aria-label="ফিরিয়ে নাও" disabled></button>
-            <button id="btn-redo" class="icon-btn" type="button" aria-label="আবার করো" disabled></button>
+            <button id="btn-select" class="btn btn-small" type="button" aria-pressed="false" data-i18n="sel.start">Select</button>
+            <button id="btn-undo" class="icon-btn" type="button" aria-label="Undo" disabled data-i18n-attr="aria-label:undo"></button>
+            <button id="btn-redo" class="icon-btn" type="button" aria-label="Redo" disabled data-i18n-attr="aria-label:redo"></button>
           </div>
         </div>
         <ol id="songs-list" class="list"></ol>
@@ -130,84 +156,84 @@
         <div id="songs-empty" class="empty" hidden></div>
       </section>
 
-      <!-- রেডিও -->
-      <section id="panel-radio" class="panel" aria-label="রেডিও">
+      <!-- radio -->
+      <section id="panel-radio" class="panel" aria-label="Radio" data-i18n-attr="aria-label:tab.radio">
         <div id="radio-now" class="radio-now" hidden>
           <div class="radio-now-text">
             <span id="radio-now-name" class="radio-now-name"></span>
             <span id="radio-now-state" class="radio-now-state"></span>
           </div>
-          <button id="radio-toggle" class="ctl" type="button" aria-label="চালাও বা থামাও"></button>
-          <button id="radio-stop" class="ctl" type="button" aria-label="রেডিও বন্ধ করো"></button>
+          <button id="radio-toggle" class="ctl" type="button" aria-label="Play or pause" data-i18n-attr="aria-label:now.toggle"></button>
+          <button id="radio-stop" class="ctl" type="button" aria-label="Stop radio" data-i18n-attr="aria-label:radio.stop"></button>
         </div>
-        <div class="section-head"><h3>আমার রেডিও</h3></div>
+        <div class="section-head"><h3 data-i18n="radio.mine">My radio</h3></div>
         <ul id="radio-mine" class="list"></ul>
         <details class="box">
-          <summary>নিজের রেডিওর লিংক যোগ করো</summary>
+          <summary data-i18n="radio.addOwn">Add your own radio link</summary>
           <form id="radio-form" class="stack">
-            <label class="field"><span>নাম</span><input id="radio-name" maxlength="40" required autocomplete="off"></label>
-            <label class="field"><span>স্ট্রিমের লিংক (https দিয়ে শুরু)</span><input id="radio-url" type="url" inputmode="url" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-            <button class="btn btn-primary" type="submit">যোগ করো</button>
+            <label class="field"><span data-i18n="common.name">Name</span><input id="radio-name" maxlength="40" required autocomplete="off"></label>
+            <label class="field"><span data-i18n="radio.url">Stream link (starts with https)</span><input id="radio-url" type="url" inputmode="url" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+            <button class="btn btn-primary" type="submit" data-i18n="common.add">Add</button>
           </form>
         </details>
         <div class="section-head">
-          <h3>বাংলাদেশের রেডিও</h3>
-          <button id="radio-refresh" class="icon-btn" type="button" aria-label="তালিকা নতুন করে আনো"></button>
+          <h3 data-i18n="radio.bd">Radio in Bangladesh</h3>
+          <button id="radio-refresh" class="icon-btn" type="button" aria-label="Reload the list" data-i18n-attr="aria-label:radio.refresh"></button>
         </div>
-        <div class="searchbox"><span id="radio-search-ic" class="search-ic"></span><input id="radio-search" type="search" placeholder="রেডিও খোঁজো" autocomplete="off" aria-label="রেডিও খোঁজো"></div>
+        <div class="searchbox"><span id="radio-search-ic" class="search-ic"></span><input id="radio-search" type="search" placeholder="Search radio" autocomplete="off" aria-label="Search radio" data-i18n-attr="placeholder:radio.find;aria-label:radio.find"></div>
         <p id="radio-msg" class="hint" role="status"></p>
         <ul id="radio-list" class="list"></ul>
       </section>
 
-      <!-- ফোল্ডার -->
-      <section id="panel-folders" class="panel" aria-label="ড্রাইভ ফোল্ডার">
-        <div class="section-head"><h3>ড্রাইভ ফোল্ডার</h3></div>
+      <!-- folders -->
+      <section id="panel-folders" class="panel" aria-label="Drive folders" data-i18n-attr="aria-label:folders.region">
+        <div class="section-head"><h3 data-i18n="folders.region">Drive folders</h3></div>
         <form id="folder-form" class="folder-form">
-          <input id="folder-input" type="text" inputmode="url" placeholder="ফোল্ডারের লিংক এখানে বসাও" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="ফোল্ডারের লিংক">
-          <button id="folder-add" class="btn btn-primary" type="submit">যোগ করো</button>
+          <input id="folder-input" type="text" inputmode="url" placeholder="Paste a folder link here" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Folder link" data-i18n-attr="placeholder:folders.placeholder;aria-label:folders.linkLabel">
+          <button id="folder-add" class="btn btn-primary" type="submit" data-i18n="common.add">Add</button>
         </form>
-        <p class="hint">ড্রাইভে ফোল্ডারের মেনু থেকে "লিংক কপি করো" বেছে নাও, তারপর এখানে বসাও। ভেতরের সব ফোল্ডারের গানও আসবে।</p>
+        <p class="hint" data-i18n="folders.hint">In Drive, choose "Copy link" from the folder menu, then paste it here. Songs in all sub-folders are included.</p>
         <p id="folder-busy" class="busy" role="status" hidden></p>
         <ul id="folder-list" class="folder-list"></ul>
 
-        <div class="section-head"><h3>লিংক থেকে গান যোগ করো</h3></div>
-        <p class="hint">সরাসরি MP3 ফাইলের লিংক দিলে গানটি ড্রাইভের বেছে নেওয়া ফোল্ডারে জমা হবে। ইউটিউব বা স্পটিফাইয়ের লিংক চলে না।</p>
+        <div class="section-head"><h3 data-i18n="grab.title">Add a song from a link</h3></div>
+        <p class="hint" data-i18n="grab.hint">A direct MP3 file link will be saved into the Drive folder you pick. YouTube and Spotify links don't work.</p>
         <form id="grab-form" class="stack">
-          <label class="field"><span>MP3 ফাইলের লিংক</span><input id="grab-url" type="url" inputmode="url" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-          <label class="field"><span>গানের নাম (না দিলে লিংক থেকে নেওয়া হবে)</span><input id="grab-name" maxlength="80" autocomplete="off"></label>
-          <label class="field"><span>কোন ফোল্ডারে রাখবে</span><select id="grab-folder"></select></label>
-          <button id="grab-btn" class="btn btn-primary" type="submit">ড্রাইভে রাখো</button>
+          <label class="field"><span data-i18n="grab.url">MP3 file link</span><input id="grab-url" type="url" inputmode="url" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="field"><span data-i18n="grab.name">Song name (taken from the link if empty)</span><input id="grab-name" maxlength="80" autocomplete="off"></label>
+          <label class="field"><span data-i18n="grab.folder">Which folder to save in</span><select id="grab-folder"></select></label>
+          <button id="grab-btn" class="btn btn-primary" type="submit" data-i18n="grab.btn">Save to Drive</button>
         </form>
         <p id="grab-busy" class="busy" role="status" hidden></p>
         <details class="box" id="grab-settings">
-          <summary>এই সুবিধার সেটিং</summary>
+          <summary data-i18n="grab.settings">Settings for this feature</summary>
           <div class="stack">
-            <p class="hint">SETUP-bn.md-এর "লিংক থেকে গান" অংশ অনুযায়ী Apps Script বানিয়ে তার ঠিকানা আর গোপন শব্দ এখানে বসাও।</p>
-            <label class="field"><span>Apps Script-এর ঠিকানা</span><input id="grab-script" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-            <label class="field"><span>গোপন শব্দ</span><input id="grab-key" type="password" autocomplete="off"></label>
-            <button id="grab-save" class="btn" type="button">সংরক্ষণ করো</button>
+            <p class="hint" data-i18n="grab.settingsHint">Make an Apps Script as described in the "link to Drive" part of SETUP-bn.md, then enter its address and secret word here.</p>
+            <label class="field"><span data-i18n="grab.script">Apps Script address</span><input id="grab-script" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+            <label class="field"><span data-i18n="grab.key">Secret word</span><input id="grab-key" type="password" autocomplete="off"></label>
+            <button id="grab-save" class="btn" type="button" data-i18n="common.save">Save</button>
           </div>
         </details>
       </section>
 
-      <!-- সাজসজ্জা -->
-      <section id="panel-look" class="panel" aria-label="সাজসজ্জা">
-        <div class="section-head"><h3>রং</h3></div>
-        <p class="group-label">রঙিন</p>
-        <div id="themes-color" class="themes"></div>
-        <p class="group-label">রাত</p>
-        <div id="themes-night" class="themes"></div>
+      <!-- style -->
+      <section id="panel-look" class="panel" aria-label="Style" data-i18n-attr="aria-label:tab.look">
+        <div class="section-head"><h3 data-i18n="look.language">Language</h3></div>
+        <div id="langs" class="langs"></div>
 
-        <div class="section-head"><h3>ফন্ট</h3></div>
+        <div class="section-head"><h3 data-i18n="look.colors">Colours</h3></div>
+        <div id="themes"></div>
+
+        <div class="section-head"><h3 data-i18n="look.fonts">Font</h3></div>
         <div id="fonts" class="fonts"></div>
 
-        <div class="section-head"><h3>অ্যাকাউন্ট</h3></div>
+        <div class="section-head"><h3 data-i18n="look.account">Account</h3></div>
         <div class="account">
           <p id="account-email" class="account-email"></p>
           <p id="sync-status" class="sync-status"></p>
           <div class="account-actions">
-            <button id="btn-account-reconnect" class="btn" type="button">ড্রাইভ আবার যুক্ত করো</button>
-            <button id="btn-logout" class="btn" type="button">বের হও</button>
+            <button id="btn-account-reconnect" class="btn" type="button" data-i18n="account.reconnect">Reconnect Drive</button>
+            <button id="btn-logout" class="btn" type="button" data-i18n="account.logout">Sign out</button>
           </div>
         </div>
       </section>
@@ -216,23 +242,23 @@
     <div id="selbar" class="selbar" hidden>
       <p id="sel-count" class="sel-count" role="status"></p>
       <div class="sel-actions">
-        <button id="sel-all" class="btn btn-small" type="button">সব বাছাই</button>
-        <button id="sel-playlist" class="btn btn-small" type="button">প্লেলিস্টে</button>
-        <button id="sel-edit" class="btn btn-small btn-primary" type="button">বিবরণ বদলাও</button>
-        <button id="sel-done" class="btn btn-small" type="button">শেষ</button>
+        <button id="sel-all" class="btn btn-small" type="button" data-i18n="sel.all">Select all</button>
+        <button id="sel-playlist" class="btn btn-small" type="button" data-i18n="sel.playlist">To playlist</button>
+        <button id="sel-edit" class="btn btn-small btn-primary" type="button" data-i18n="sel.edit">Edit details</button>
+        <button id="sel-done" class="btn btn-small" type="button" data-i18n="sel.done">Done</button>
       </div>
     </div>
 
     <div id="mini" class="mini" hidden>
-      <button id="mini-open" class="mini-open" type="button" aria-label="প্লেয়ার খোলো">
+      <button id="mini-open" class="mini-open" type="button" aria-label="Open player" data-i18n-attr="aria-label:mini.open">
         <span id="mini-title" class="mini-title"></span>
         <span id="mini-sub" class="mini-sub"></span>
       </button>
-      <button id="mini-play" class="ctl" type="button" aria-label="চালাও বা থামাও"></button>
-      <button id="mini-next" class="ctl" type="button" aria-label="পরের গান"></button>
+      <button id="mini-play" class="ctl" type="button" aria-label="Play or pause" data-i18n-attr="aria-label:now.toggle"></button>
+      <button id="mini-next" class="ctl" type="button" aria-label="Next song" data-i18n-attr="aria-label:ctl.next"></button>
     </div>
 
-    <nav class="nav" aria-label="প্রধান মেনু">
+    <nav class="nav" aria-label="Main menu" data-i18n-attr="aria-label:nav.label">
       <button class="nav-btn active" type="button" data-tab="now" aria-current="page"></button>
       <button class="nav-btn" type="button" data-tab="songs"></button>
       <button class="nav-btn" type="button" data-tab="radio"></button>
@@ -245,12 +271,12 @@
     <div id="sheet-backdrop" class="sheet-backdrop"></div>
     <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
       <p id="sheet-title" class="sheet-title"></p>
-      <button id="sheet-next" class="sheet-btn" type="button">এরপর বাজাও</button>
-      <button id="sheet-queue" class="sheet-btn" type="button">কিউয়ের শেষে যোগ করো</button>
-      <button id="sheet-fav" class="sheet-btn" type="button">পছন্দ করো</button>
-      <button id="sheet-playlist" class="sheet-btn" type="button">প্লেলিস্টে যোগ করো</button>
-      <button id="sheet-edit" class="sheet-btn" type="button">নাম, বিবরণ ও ট্যাগ বদলাও</button>
-      <button id="sheet-close" class="sheet-btn sheet-cancel" type="button">বন্ধ করো</button>
+      <button id="sheet-next" class="sheet-btn" type="button" data-i18n="sheet.next">Play next</button>
+      <button id="sheet-queue" class="sheet-btn" type="button" data-i18n="sheet.queue">Add to end of queue</button>
+      <button id="sheet-fav" class="sheet-btn" type="button" data-i18n="sheet.fav">Add to favourites</button>
+      <button id="sheet-playlist" class="sheet-btn" type="button" data-i18n="sheet.playlist">Add to playlist</button>
+      <button id="sheet-edit" class="sheet-btn" type="button" data-i18n="sheet.edit">Edit name, details and tags</button>
+      <button id="sheet-close" class="sheet-btn sheet-cancel" type="button" data-i18n="common.close">Close</button>
     </div>
   </div>
 
@@ -258,16 +284,16 @@
     <div class="sheet-backdrop" data-close></div>
     <form id="edit-form" class="sheet-card sheet-tall" role="dialog" aria-modal="true" aria-labelledby="edit-title">
       <p id="edit-title" class="sheet-title"></p>
-      <p id="edit-hint" class="hint" hidden>ফাঁকা ঘর বদলাবে না। ট্যাগ আর পছন্দ শুধু যোগ হবে।</p>
-      <label id="name-field" class="field"><span>গানের নাম (ড্রাইভের ফাইলের নামও বদলাবে)</span><input id="f-name" maxlength="150" autocomplete="off"></label>
-      <label class="field"><span>আর্টিস্ট</span><input id="f-artist" list="dl-artist" autocomplete="off"></label>
-      <label class="field"><span>অ্যালবাম</span><input id="f-album" list="dl-album" autocomplete="off"></label>
-      <label class="field"><span>সিনেমা</span><input id="f-movie" list="dl-movie" autocomplete="off"></label>
-      <div class="field"><span>ট্যাগ</span><div id="f-tags" class="tagchips"></div></div>
+      <p id="edit-hint" class="hint" hidden data-i18n="edit.hint">Empty fields stay unchanged. Tags and favourite are only added.</p>
+      <label id="name-field" class="field"><span data-i18n="edit.name">Song name (the Drive file name changes too)</span><input id="f-name" maxlength="150" autocomplete="off"></label>
+      <label class="field"><span data-i18n="edit.artist">Artist</span><input id="f-artist" list="dl-artist" autocomplete="off"></label>
+      <label class="field"><span data-i18n="edit.album">Album</span><input id="f-album" list="dl-album" autocomplete="off"></label>
+      <label class="field"><span data-i18n="edit.movie">Movie</span><input id="f-movie" list="dl-movie" autocomplete="off"></label>
+      <div class="field"><span data-i18n="edit.tags">Tags</span><div id="f-tags" class="tagchips"></div></div>
       <button id="f-fav" class="sheet-btn" type="button" aria-pressed="false"></button>
       <div class="sheet-actions">
-        <button class="btn btn-primary" type="submit">সংরক্ষণ করো</button>
-        <button class="btn" type="button" data-close>বন্ধ করো</button>
+        <button class="btn btn-primary" type="submit" data-i18n="common.save">Save</button>
+        <button class="btn" type="button" data-close data-i18n="common.close">Close</button>
       </div>
     </form>
     <datalist id="dl-artist"></datalist>
@@ -278,13 +304,13 @@
   <div id="tagdlg" class="sheet" hidden>
     <div class="sheet-backdrop" data-close></div>
     <form id="tag-form" class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="tag-title">
-      <p id="tag-title" class="sheet-title">নতুন ট্যাগ</p>
-      <label class="field"><span>নাম</span><input id="tag-name" maxlength="30" required autocomplete="off"></label>
-      <div class="field"><span>রং</span><div id="tag-colors" class="color-row"></div></div>
+      <p id="tag-title" class="sheet-title" data-i18n="tag.new">New tag</p>
+      <label class="field"><span data-i18n="common.name">Name</span><input id="tag-name" maxlength="30" required autocomplete="off"></label>
+      <div class="field"><span data-i18n="common.colour">Colour</span><div id="tag-colors" class="color-row"></div></div>
       <div class="sheet-actions">
-        <button class="btn btn-primary" type="submit">সংরক্ষণ করো</button>
-        <button id="tag-delete" class="btn" type="button" hidden>মুছে ফেলো</button>
-        <button class="btn" type="button" data-close>বন্ধ করো</button>
+        <button class="btn btn-primary" type="submit" data-i18n="common.save">Save</button>
+        <button id="tag-delete" class="btn" type="button" hidden data-i18n="pl.delete">Delete</button>
+        <button class="btn" type="button" data-close data-i18n="common.close">Close</button>
       </div>
     </form>
   </div>
@@ -292,11 +318,11 @@
   <div id="pldlg" class="sheet" hidden>
     <div class="sheet-backdrop" data-close></div>
     <form id="pl-form" class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="pl-title">
-      <p id="pl-title" class="sheet-title">নতুন প্লেলিস্ট</p>
-      <label class="field"><span>নাম</span><input id="pl-name" maxlength="40" required autocomplete="off"></label>
+      <p id="pl-title" class="sheet-title" data-i18n="pl.newBtn">New playlist</p>
+      <label class="field"><span data-i18n="common.name">Name</span><input id="pl-name" maxlength="40" required autocomplete="off"></label>
       <div class="sheet-actions">
-        <button class="btn btn-primary" type="submit">সংরক্ষণ করো</button>
-        <button class="btn" type="button" data-close>বন্ধ করো</button>
+        <button class="btn btn-primary" type="submit" data-i18n="common.save">Save</button>
+        <button class="btn" type="button" data-close data-i18n="common.close">Close</button>
       </div>
     </form>
   </div>
@@ -304,10 +330,10 @@
   <div id="plpick" class="sheet" hidden>
     <div class="sheet-backdrop" data-close></div>
     <div class="sheet-card sheet-tall" role="dialog" aria-modal="true" aria-labelledby="plpick-title">
-      <p id="plpick-title" class="sheet-title">কোন প্লেলিস্টে যোগ করবে?</p>
+      <p id="plpick-title" class="sheet-title" data-i18n="plpick.title">Add to which playlist?</p>
       <div id="plpick-list" class="stack"></div>
       <button id="plpick-new" class="sheet-btn" type="button"></button>
-      <button class="sheet-btn sheet-cancel" type="button" data-close>বন্ধ করো</button>
+      <button class="sheet-btn sheet-cancel" type="button" data-close data-i18n="common.close">Close</button>
     </div>
   </div>
 

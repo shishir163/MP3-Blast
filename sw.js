@@ -1,5 +1,5 @@
 // MP3 Blast service worker: keeps the app shell available and never touches Drive or login traffic.
-const VERSION = "v4";
+const VERSION = "v6";
 const SHELL_CACHE = `mp3blast-shell-${VERSION}`;
 const RUNTIME_CACHE = `mp3blast-runtime-${VERSION}`;
 
@@ -15,6 +15,7 @@ const SHELL = [
   "js/meta.js",
   "js/cloud.js",
   "js/radio.js",
+  "js/i18n.js",
   "js/icons.js",
   "js/firebase-config.js",
   "manifest.webmanifest",

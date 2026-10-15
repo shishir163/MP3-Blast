@@ -1,5 +1,5 @@
 // MP3 Blast service worker: keeps the app shell available and never touches Drive or login traffic.
-const VERSION = "v6";
+const VERSION = "v7";
 const SHELL_CACHE = `mp3blast-shell-${VERSION}`;
 const RUNTIME_CACHE = `mp3blast-runtime-${VERSION}`;
 

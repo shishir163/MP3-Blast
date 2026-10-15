@@ -31,8 +31,8 @@ function makeProvider() {
   return provider;
 }
 
-function saveToken(token) {
-  tokenRecord = { token, exp: Date.now() + TOKEN_TTL_MS };
+function saveToken(token, ttlMs = TOKEN_TTL_MS) {
+  tokenRecord = { token, exp: Date.now() + ttlMs };
   try {
     localStorage.setItem(TOKEN_KEY, JSON.stringify(tokenRecord));
   } catch {
@@ -91,6 +91,88 @@ export async function signIn() {
     }
     throw err;
   }
+}
+
+// ---------- renewing the Drive token straight through Google ----------
+// Signing in through Firebase sends the browser via <project>.firebaseapp.com, which some mobile
+// networks cannot reach. Renewing the Drive token with Google's own library skips that hop.
+// If anything about it fails, we fall back to the Firebase sign-in above.
+// The client ID is public (it is the web client Firebase created); it can be overridden with
+// `googleClientId` in firebase-config.js.
+const GOOGLE_CLIENT_ID =
+  firebaseConfig.googleClientId || "145293097897-8t0am87si49uab6rb2jau39ncmnucbdr.apps.googleusercontent.com";
+const GIS_SRC = "https://accounts.google.com/gsi/client";
+
+let gisStarted = false;
+let tokenClient = null;
+let pendingGis = null;
+
+function gisSettle(done) {
+  const p = pendingGis;
+  pendingGis = null;
+  if (p) done(p);
+}
+
+function setupTokenClient() {
+  try {
+    tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: (resp) => {
+        if (resp && resp.access_token) {
+          const secs = Number(resp.expires_in) || 3600;
+          // keep a five-minute margin, like the 55 of 60 minutes used for Firebase tokens
+          saveToken(resp.access_token, Math.max(60, secs - 300) * 1000);
+          gisSettle((p) => p.ok());
+        } else if (resp && resp.error === "access_denied") {
+          gisSettle((p) => p.cancel());
+        } else {
+          gisSettle((p) => p.fallback());
+        }
+      },
+      error_callback: (err) => {
+        if (err && err.type === "popup_closed") gisSettle((p) => p.cancel());
+        else gisSettle((p) => p.fallback());
+      },
+    });
+  } catch {
+    tokenClient = null;
+  }
+}
+
+// Loads Google's library in the background so a click can open the sign-in window at once.
+export function preloadGoogle() {
+  if (!isConfigured || gisStarted) return;
+  gisStarted = true;
+  const script = document.createElement("script");
+  script.src = GIS_SRC;
+  script.async = true;
+  script.onload = setupTokenClient;
+  document.head.appendChild(script);
+}
+
+// Brings back a fresh Drive token for the signed-in user.
+// Must be called straight from a tap so the browser lets the sign-in window open.
+export function reconnectDrive() {
+  const user = auth ? auth.currentUser : null;
+  if (!tokenClient || !user) return signIn();
+  // a second tap while the window is open just waits for the first; an old unanswered request is dropped
+  if (pendingGis && Date.now() - pendingGis.at < 2 * 60 * 1000) return pendingGis.promise;
+  const promise = new Promise((resolve, reject) => {
+    pendingGis = {
+      at: Date.now(),
+      ok: () => resolve(user),
+      cancel: () => reject({ code: "auth/popup-closed-by-user" }),
+      fallback: () => signIn().then(resolve, reject),
+    };
+  });
+  pendingGis.promise = promise;
+  try {
+    tokenClient.requestAccessToken({ prompt: "", hint: user.email || undefined });
+  } catch {
+    gisSettle((p) => p.fallback());
+  }
+  return promise;
 }
 
 export async function signOutUser() {

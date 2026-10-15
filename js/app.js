@@ -1,6 +1,6 @@
 import { store } from "./store.js";
 import { icon } from "./icons.js";
-import { isConfigured, onAuth, signIn, signOutUser, finishRedirect, getToken } from "./auth.js";
+import { isConfigured, onAuth, signIn, signOutUser, finishRedirect, getToken, preloadGoogle, reconnectDrive } from "./auth.js";
 import { parseFolderId, getFolderInfo, scanFolder, displayTitle, renameFile, extOf, AuthError, DriveError } from "./drive.js";
 import { Player } from "./player.js";
 import { MetaStore, TAG_COLORS } from "./meta.js";
@@ -1578,7 +1578,7 @@ async function startSignIn() {
 
 async function reconnect() {
   try {
-    const user = await signIn();
+    const user = await reconnectDrive();
     updateBanner();
     if (user) toast(tr("account.reconnected"));
     if (player.awaitingAuth) player.retry();
@@ -2122,8 +2122,10 @@ async function boot() {
     loginError(err);
   }
   onAuth((user) => {
-    if (user) showApp(user);
-    else showLogin();
+    if (user) {
+      showApp(user);
+      preloadGoogle();
+    } else showLogin();
   });
 }
 
